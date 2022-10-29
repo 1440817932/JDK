@@ -134,6 +134,20 @@ import java.util.function.Function;
  * @see     Hashtable
  * @since   1.2
  */
+
+/**
+ * 为什么使用数组链表：
+ * 数组：查找容易，通过index 快速定位；插入和删除困难，需要移动插入和删除位置之后的节点；
+ * 链表：查找困难，需要从头节点或尾节点开始遍历，知道找到目标节点；插入和删除容易，只需要修改目标节点前后的prev和next属性即可。
+ *
+ *     首先通过index快速定位索引位置，利用了数组的优点；然后遍历链表找到节点，进行节点的新增/修改/删除操作，利用了链表的优点。
+ *
+ * 1.8改成数组链表红黑树：
+ * 问题：定位索引位置后，需要先先遍历链表找到节点，如果链表很长的话（hash冲突严重的时候），会有查找性能问题。
+ * 使用链表查找性能 O(n),使用红黑树是 O(log n)
+ * @param <K>
+ * @param <V>
+ */
 public class HashMap<K,V> extends AbstractMap<K,V>
     implements Map<K,V>, Cloneable, Serializable {
 
@@ -232,6 +246,12 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     /**
      * The default initial capacity - MUST be a power of two.
      */
+    // 默认初始容量
+    // 容量必须是2的N次方，HashMap会根据我们传入的容量计算一个“大于等于该容量的2的N次方”
+    // 例如传16，容量为16；传17容量为32
+    // 为什么容量必须是2的N次方
+    // 核心目的：实现节点均匀分布，减少hash冲突
+
     static final int DEFAULT_INITIAL_CAPACITY = 1 << 4; // aka 16
 
     /**
@@ -239,11 +259,13 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * by either of the constructors with arguments.
      * MUST be a power of two <= 1<<30.
      */
+    // 最大容量
     static final int MAXIMUM_CAPACITY = 1 << 30;
 
     /**
      * The load factor used when none specified in constructor.
      */
+    // 加载因子
     static final float DEFAULT_LOAD_FACTOR = 0.75f;
 
     /**
@@ -254,6 +276,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * tree removal about conversion back to plain bins upon
      * shrinkage.
      */
+    // 数组转树阈值
+    //为什么是8？ 红黑树节点大小约为链表节点的2倍，在节点太少时，红黑树的查找性能优势并不明显，付出的代价不值得
     static final int TREEIFY_THRESHOLD = 8;
 
     /**
@@ -261,6 +285,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * resize operation. Should be less than TREEIFY_THRESHOLD, and at
      * most 6 to mesh with shrinkage detection under removal.
      */
+    // 树转数组阈值
     static final int UNTREEIFY_THRESHOLD = 6;
 
     /**
@@ -269,6 +294,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * Should be at least 4 * TREEIFY_THRESHOLD to avoid conflicts
      * between resizing and treeification thresholds.
      */
+    // 数组转树需要数组长度大于等于64，则会触发链表节点转红黑树节点
     static final int MIN_TREEIFY_CAPACITY = 64;
 
     /**
@@ -335,6 +361,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      */
     static final int hash(Object key) {
         int h;
+        //
         return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);
     }
 
@@ -347,6 +374,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             Class<?> c; Type[] ts, as; Type t; ParameterizedType p;
             if ((c = x.getClass()) == String.class) // bypass checks
                 return c;
+            //getGenericInterfaces ：它返回由该类实现的接口数组
             if ((ts = c.getGenericInterfaces()) != null) {
                 for (int i = 0; i < ts.length; ++i) {
                     if (((t = ts[i]) instanceof ParameterizedType) &&
@@ -374,13 +402,18 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     /**
      * Returns a power of two size for the given target capacity.
      */
+    // 大于等于该容量的最小的2的N次方计算
     static final int tableSizeFor(int cap) {
+        // 处理本身cap是2的N次方情况
         int n = cap - 1;
+        //“ | ” 或等于  如：a| = b -> a = a | b
+        // " >>> " 无符号右移 右移后左边空出的位用 0 补充， 移出右边的位被丢弃
         n |= n >>> 1;
         n |= n >>> 2;
         n |= n >>> 4;
         n |= n >>> 8;
         n |= n >>> 16;
+        // 5个公式通过最高位的1，拿到1个1、4个1、8个1、16个1、32个1 。然后返回的时候加1.会得到一个比n大的2的N次方。
         return (n < 0) ? 1 : (n >= MAXIMUM_CAPACITY) ? MAXIMUM_CAPACITY : n + 1;
     }
 
@@ -423,6 +456,12 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     // Additionally, if the table array has not been allocated, this
     // field holds the initial array capacity, or zero signifying
     // DEFAULT_INITIAL_CAPACITY.)
+    //
+    // 扩容阈值：
+    // 1）当HashMap的个数达到改值，触发扩容
+    // 2）初始化时的容量，在我们新建HashMap对象时，threshold 还会被用来村初始化时的容量。
+    // 3）HashMap 直到我们第一次插入节点时，才会对table进行初始化，避免不必要的空间浪费。
+
     int threshold;
 
     /**
@@ -430,6 +469,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      *
      * @serial
      */
+    // 负载因子： 扩容阈值 = 容量 * 负载因子
     final float loadFactor;
 
     /* ---------------- Public operations -------------- */
@@ -447,6 +487,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         if (initialCapacity < 0)
             throw new IllegalArgumentException("Illegal initial capacity: " +
                                                initialCapacity);
+        // 初始化容量比最大容量大，使用默认的最大容量
         if (initialCapacity > MAXIMUM_CAPACITY)
             initialCapacity = MAXIMUM_CAPACITY;
         if (loadFactor <= 0 || Float.isNaN(loadFactor))
@@ -623,23 +664,37 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      */
     final V putVal(int hash, K key, V value, boolean onlyIfAbsent,
                    boolean evict) {
+        // n：数组大小 i:key的hash值（键值）
+        // p: 存放新key的值的Node 节点（可能为空，可能有值）
         Node<K,V>[] tab; Node<K,V> p; int n, i;
+        // 先判断数组是否为空
+        // 如果为空初始化数组
         if ((tab = table) == null || (n = tab.length) == 0)
             n = (tab = resize()).length;
+        // 不为空计算索引位置
+        // 如果索引位置是否有节点
         if ((p = tab[i = (n - 1) & hash]) == null)
+            // 索引位置没有节点，直接新建节点放到索引位置
             tab[i] = newNode(hash, key, value, null);
+            // 索引位置有节点
         else {
             Node<K,V> e; K k;
+            // 判断键的hash值是否跟节点相等，先等在比较键值，都相等则替换旧值，返回旧值
             if (p.hash == hash &&
                 ((k = p.key) == key || (key != null && key.equals(k))))
                 e = p;
+            // 插头节点和插入的key不相等，且头节点为红黑树 进入putTreeVal方法
             else if (p instanceof TreeNode)
                 e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
             else {
+                // 断键的hash值是否跟节点不相等节点不是红黑树
                 for (int binCount = 0; ; ++binCount) {
                     if ((e = p.next) == null) {
                         p.next = newNode(hash, key, value, null);
+                        // binCount从零开始，所以 减一
+                        // 链表长度等于8转树
                         if (binCount >= TREEIFY_THRESHOLD - 1) // -1 for 1st
+                            // 链表转红黑树
                             treeifyBin(tab, hash);
                         break;
                     }
@@ -651,6 +706,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             }
             if (e != null) { // existing mapping for key
                 V oldValue = e.value;
+                // onlyIfAbsent ：用来判断没有就插入
                 if (!onlyIfAbsent || oldValue == null)
                     e.value = value;
                 afterNodeAccess(e);
@@ -753,6 +809,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      */
     final void treeifyBin(Node<K,V>[] tab, int hash) {
         int n, index; Node<K,V> e;
+        // 数组转树需要数组长度大于等于64，则会触发链表节点转红黑树节点否则继续增加链表节点
         if (tab == null || (n = tab.length) < MIN_TREEIFY_CAPACITY)
             resize();
         else if ((e = tab[index = (n - 1) & hash]) != null) {
@@ -1839,6 +1896,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
          * The kc argument caches comparableClassFor(key) upon first use
          * comparing keys.
          */
+        // 使用给定的哈希和键查找从根p开始的节点。kc参数在首次使用比较键时缓存compatileClassFor（key）。
         final TreeNode<K,V> find(int h, Object k, Class<?> kc) {
             TreeNode<K,V> p = this;
             do {
@@ -1956,18 +2014,23 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         /**
          * Tree version of putVal.
          */
+        // h为新key 的hash值
         final TreeNode<K,V> putTreeVal(HashMap<K,V> map, Node<K,V>[] tab,
                                        int h, K k, V v) {
             Class<?> kc = null;
             boolean searched = false;
+            // this： 为TreeNode
             TreeNode<K,V> root = (parent != null) ? root() : this;
+            // 找到红黑树的根节点，从根节点开始遍历
             for (TreeNode<K,V> p = root;;) {
+                // dir：
                 int dir, ph; K pk;
                 if ((ph = p.hash) > h)
                     dir = -1;
                 else if (ph < h)
                     dir = 1;
                 else if ((pk = p.key) == k || (k != null && k.equals(pk)))
+                    // 找到树节点的k值相等直接返回
                     return p;
                 else if ((kc == null &&
                           (kc = comparableClassFor(k)) == null) ||
@@ -1984,6 +2047,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     dir = tieBreakOrder(k, pk);
                 }
 
+                // 新建节点放入红黑树相应位置
                 TreeNode<K,V> xp = p;
                 if ((p = (dir <= 0) ? p.left : p.right) == null) {
                     Node<K,V> xpn = xp.next;
@@ -1996,6 +2060,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     x.parent = x.prev = xp;
                     if (xpn != null)
                         ((TreeNode<K,V>)xpn).prev = x;
+                    // 红黑树平衡调整
                     moveRootToFront(tab, balanceInsertion(root, x));
                     return null;
                 }

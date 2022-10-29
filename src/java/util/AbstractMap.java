@@ -737,6 +737,7 @@ public abstract class AbstractMap<K,V> implements Map<K,V> {
          *
          * @param entry the entry to copy
          */
+        // immutable: 不可变的
         public SimpleImmutableEntry(Entry<? extends K, ? extends V> entry) {
             this.key   = entry.getKey();
             this.value = entry.getValue();
