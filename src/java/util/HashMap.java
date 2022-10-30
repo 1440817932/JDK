@@ -869,16 +869,21 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     final Node<K,V> removeNode(int hash, Object key, Object value,
                                boolean matchValue, boolean movable) {
         Node<K,V>[] tab; Node<K,V> p; int n, index;
+        //
         if ((tab = table) != null && (n = tab.length) > 0 &&
             (p = tab[index = (n - 1) & hash]) != null) {
+            // node要删除的节点
             Node<K,V> node = null, e; K k; V v;
+            // 找到hash和key的hash相等的key
             if (p.hash == hash &&
                 ((k = p.key) == key || (key != null && key.equals(k))))
                 node = p;
             else if ((e = p.next) != null) {
                 if (p instanceof TreeNode)
+                    // 获取树类型的节点
                     node = ((TreeNode<K,V>)p).getTreeNode(hash, key);
                 else {
+                    // 否则遍历链表获取节点
                     do {
                         if (e.hash == hash &&
                             ((k = e.key) == key ||
@@ -1901,6 +1906,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             TreeNode<K,V> p = this;
             do {
                 int ph, dir; K pk;
+                // 获取当前节点的左孩子、右孩子。定义一个对象q用来存储并返回找到的对象
                 TreeNode<K,V> pl = p.left, pr = p.right, q;
                 if ((ph = p.hash) > h)
                     p = pl;
@@ -1908,14 +1914,19 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     p = pr;
                 else if ((pk = p.key) == k || (k != null && k.equals(pk)))
                     return p;
+                    // 执行到这里说明 hash比对相同，但是pk和k不相等
                 else if (pl == null)
                     p = pr;
                 else if (pr == null)
                     p = pl;
+                // 这一轮的对比主要是想通过comparable方法来比较pk和k的大小
                 else if ((kc != null ||
+                        // kc 是可比较类
                           (kc = comparableClassFor(k)) != null) &&
                          (dir = compareComparables(kc, k, pk)) != 0)
                     p = (dir < 0) ? pl : pr;
+                // 执行到这里说明无法通过comparable比较  或者 比较之后还是相等
+                    // 从右孩子节点递归循环查找，如果找到了匹配的则返回
                 else if ((q = pr.find(h, k, kc)) != null)
                     return q;
                 else
@@ -1943,6 +1954,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             if (a == null || b == null ||
                 (d = a.getClass().getName().
                  compareTo(b.getClass().getName())) == 0)
+                //System.identityHashCode：用于返回给定对象的哈希码–通过使用此方法，哈希码的值将与使用hashCode()方法的哈希码的值相同。
                 d = (System.identityHashCode(a) <= System.identityHashCode(b) ?
                      -1 : 1);
             return d;
@@ -2032,8 +2044,10 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 else if ((pk = p.key) == k || (k != null && k.equals(pk)))
                     // 找到树节点的k值相等直接返回
                     return p;
+                //到这里说明key的hash值相等，但是支不相等
                 else if ((kc == null &&
                           (kc = comparableClassFor(k)) == null) ||
+                        // 找到新key是否实现comparable接口，如果两个key是相同的对象，然后在比较两个对象的
                          (dir = compareComparables(kc, k, pk)) == 0) {
                     if (!searched) {
                         TreeNode<K,V> q, ch;
@@ -2050,17 +2064,20 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 // 新建节点放入红黑树相应位置
                 TreeNode<K,V> xp = p;
                 if ((p = (dir <= 0) ? p.left : p.right) == null) {
+                    // xpn：当前节点的下一个
                     Node<K,V> xpn = xp.next;
                     TreeNode<K,V> x = map.newTreeNode(h, k, v, xpn);
                     if (dir <= 0)
                         xp.left = x;
                     else
                         xp.right = x;
+                    // 新节点赋值给当前的next节点
                     xp.next = x;
+                    // 新节点的上一个和父节点都是 当前的节点
                     x.parent = x.prev = xp;
                     if (xpn != null)
                         ((TreeNode<K,V>)xpn).prev = x;
-                    // 红黑树平衡调整
+                    // 红黑树平衡调整；移动根节点到数组节点
                     moveRootToFront(tab, balanceInsertion(root, x));
                     return null;
                 }
@@ -2083,37 +2100,53 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             if (tab == null || (n = tab.length) == 0)
                 return;
             int index = (n - 1) & hash;
+            // 通过hash值定位数组位置
             TreeNode<K,V> first = (TreeNode<K,V>)tab[index], root = first, rl;
             TreeNode<K,V> succ = (TreeNode<K,V>)next, pred = prev;
+            // 前一个节点为空， tab[index]和first指向后一个节点
             if (pred == null)
                 tab[index] = first = succ;
+            // 前一个节点不为空，则前一个节点的后一个节点指向后一个（其实就是把当前删了）
             else
                 pred.next = succ;
+            // 如果后一个节点不为空，将后一个节点的前节点指向当前节点的前一个
             if (succ != null)
                 succ.prev = pred;
+            // 如果第一个节点为空直接返回
             if (first == null)
                 return;
+            // 根节点存在父节点，说明不是根节点，调用root（）获取，确保root是根节点
             if (root.parent != null)
                 root = root.root();
+            // 根据节点及其左右子树，来判断此时红黑树节点的数量，进而转为链表
             if (root == null || root.right == null ||
                 (rl = root.left) == null || rl.left == null) {
                 tab[index] = first.untreeify(map);  // too small
                 return;
             }
+            // p要删除的节点，replacement删除后代替他的节点
+            // 删除了一个中间的系欸但，但是他还有子系欸但，肯定是要连接到树上的，此时需要一个节点但来顶替他的位置
             TreeNode<K,V> p = this, pl = left, pr = right, replacement;
+            // 删除树中节点，左右孩纸都不为空时
             if (pl != null && pr != null) {
+                // s=pr，是当前节点的左节点开始遍历，找到最后一个左叶子节点
+                // s是大于当前节点的最小节点
                 TreeNode<K,V> s = pr, sl;
                 while ((sl = s.left) != null) // find successor
                     s = sl;
+                // 颜色交换，要删除的节点，替换他的节点
                 boolean c = s.red; s.red = p.red; p.red = c; // swap colors
                 TreeNode<K,V> sr = s.right;
                 TreeNode<K,V> pp = p.parent;
+                // 位置交换
+                // s==pr 意思是：大于删除处的节点的最小节点就是他的右节点
                 if (s == pr) { // p was s's direct parent
                     p.parent = s;
                     s.right = p;
                 }
                 else {
                     TreeNode<K,V> sp = s.parent;
+                    //当前节点的指向，替换节点的父节点
                     if ((p.parent = sp) != null) {
                         if (s == sp.left)
                             sp.left = p;
@@ -2235,11 +2268,24 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         static <K,V> TreeNode<K,V> rotateLeft(TreeNode<K,V> root,
                                               TreeNode<K,V> p) {
             TreeNode<K,V> r, pp, rl;
+            // r ： 为当前节点
+            // pp: 当前节点的父节点
+            // rl: 当前节点右节点的左节点
+
             if (p != null && (r = p.right) != null) {
+                // 原节点的左子树赋值给 原父节点的右子树
                 if ((rl = p.right = r.left) != null)
+                    // 源节点的左节点的父节点要指向原父节点
+                    // 注意：两个节点相连，需要将A节点的左或右节点指向B，B的父节点也需要指向A
                     rl.parent = p;
+                // 处理源节点：因为左移源节点需要做原父节点的父节点，
+                // 第一步：需要将源节点的父节点赋值给源节点的父节点：
+                // 比如a为原父节点，b为源节点，  那么左移需要b作为a的父节点，所以需要将a的父节点赋值给b的父节点
+                // 然后，将a的父节点指向b节点，b的左子树需要指向a节点 组成链
+                // 最后原a 的父节点的左子树需要指向新的b节点（此处为）
                 if ((pp = r.parent = p.parent) == null)
                     (root = r).red = false;
+                // 这里是比较原本的pp.left，所以走这一步
                 else if (pp.left == p)
                     pp.left = r;
                 else
@@ -2247,46 +2293,73 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 r.left = p;
                 p.parent = r;
             }
+            // 为什么这个root是原节点
             return root;
         }
 
         static <K,V> TreeNode<K,V> rotateRight(TreeNode<K,V> root,
                                                TreeNode<K,V> p) {
             TreeNode<K,V> l, pp, lr;
+            // l: 原节点的父节点
+            // pp： 原爷爷的父节点节点
+            // lr：源节点的父节点的右子树
             if (p != null && (l = p.left) != null) {
+                // 原节点的父节点的右子树，需要赋值给爷爷节点的左子树
                 if ((lr = p.left = l.right) != null)
+                    // 然后原节点的右子树的父节点需要指向爷爷节点
                     lr.parent = p;
+                // 比较爷爷节点的父节点是否有值
+                // 并且赋值给原父节点的父节点
                 if ((pp = l.parent = p.parent) == null)
                     (root = l).red = false;
+                // 有值的话  需要将爷爷节点的父节点指针指向当前的父节点
+                // 没有值判断爷爷节点的右子树是否等于源节点的父节点，等于就将父节点赋值给爷爷节点的右子树
                 else if (pp.right == p)
                     pp.right = l;
+                // 否则赋值给爷爷节点的左子树
                 else
                     pp.left = l;
+                // 父节点的右子树指向原来的爷爷节点
                 l.right = p;
+                // 爷爷的父节点指向父节点
                 p.parent = l;
             }
             return root;
         }
 
+        // x：新节点
         static <K,V> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root,
                                                     TreeNode<K,V> x) {
+            // 插入开始赋值为红节点
             x.red = true;
+            // xp：父节点  xpp：爷爷节点 xppl：爷爷左子树 xppr： 爷爷右子树
             for (TreeNode<K,V> xp, xpp, xppl, xppr;;) {
+                // 如果父节点为空，说明只有一个节点，直接返回
                 if ((xp = x.parent) == null) {
                     x.red = false;
                     return x;
                 }
+                // 父节点不是红色，或者爷爷节点为空直接返回
                 else if (!xp.red || (xpp = xp.parent) == null)
                     return root;
+                // 判断父节点是左子树还是右子树
                 if (xp == (xppl = xpp.left)) {
+                    // 进来说明是父是爷爷的左子树
                     if ((xppr = xpp.right) != null && xppr.red) {
+                        // 爷爷右子树是红色
+                        // 父叔节点变黑
                         xppr.red = false;
                         xp.red = false;
+                        // 爷爷变红
                         xpp.red = true;
+                        // 当前节点指向爷爷
                         x = xpp;
                     }
                     else {
+                        // 爷爷右子树是黑的
+                        // 当前节点是右子树
                         if (x == xp.right) {
+                            // 当前节点是父节点的右子树 左移
                             root = rotateLeft(root, x = xp);
                             xpp = (xp = x.parent) == null ? null : xp.parent;
                         }
@@ -2299,6 +2372,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                         }
                     }
                 }
+                // 父节点是爷爷节点的右子树
                 else {
                     if (xppl != null && xppl.red) {
                         xppl.red = false;
