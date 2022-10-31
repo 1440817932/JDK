@@ -135,6 +135,7 @@ import java.util.function.Function;
  * @since   1.2
  */
 
+
 /**
  * 为什么使用数组链表：
  * 数组：查找容易，通过index 快速定位；插入和删除困难，需要移动插入和删除位置之后的节点；
