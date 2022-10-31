@@ -333,6 +333,16 @@ public class Hashtable<K,V>
     public synchronized boolean containsKey(Object key) {
         Entry<?,?> tab[] = table;
         int hash = key.hashCode();
+        // 16进制中，两个字符是一个字节，一个字符的话，是一个字节。
+        // 0x7FFFFFFF: 每个十六进制数4bit，因此8位16进制是4个字节，刚好是一个int整型
+        // F的二进制码为 1111
+        // 7的二进制码为 0111
+        // 整个整数 0x7FFFFFFF 的二进制表示就是除了首位是 0，其余都是1
+        // 就是说，这是最大的整型数 int（因为第一位是符号位，0 表示他是正数）
+
+        // (hash & 0x7FFFFFFF):作用
+        // 主要是为了保证得到的index的第一位为0，也就是为了得到一个正数。
+        // 因为有符号数第一位0代表正数，1代表负数。
         int index = (hash & 0x7FFFFFFF) % tab.length;
         for (Entry<?,?> e = tab[index] ; e != null ; e = e.next) {
             if ((e.hash == hash) && e.key.equals(key)) {
@@ -425,6 +435,7 @@ public class Hashtable<K,V>
             rehash();
 
             tab = table;
+            // key为空，在执行到int hash = key.hashCode()时同样会抛出NullPointerException异常
             hash = key.hashCode();
             index = (hash & 0x7FFFFFFF) % tab.length;
         }
@@ -462,6 +473,18 @@ public class Hashtable<K,V>
         // Makes sure the key is not already in the hashtable.
         Entry<?,?> tab[] = table;
         int hash = key.hashCode();
+        // 16进制中，两个字符是一个字节，一个字符的话，是一个字节。
+        // 0x7FFFFFFF: 每个十六进制数4bit，因此8位16进制是4个字节，刚好是一个int整型
+        // F的二进制码为 1111
+        // 7的二进制码为 0111
+        // 整个整数 0x7FFFFFFF 的二进制表示就是除了首位是 0，其余都是1
+        // 就是说，这是最大的整型数 int（因为第一位是符号位，0 表示他是正数）
+
+        // (hash & 0x7FFFFFFF):作用
+        // 主要是为了保证得到的index的第一位为0，也就是为了得到一个正数。
+        // 因为有符号数第一位0代表正数，1代表负数。
+
+        // % 取模运算
         int index = (hash & 0x7FFFFFFF) % tab.length;
         @SuppressWarnings("unchecked")
         Entry<K,V> entry = (Entry<K,V>)tab[index];

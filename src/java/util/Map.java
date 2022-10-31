@@ -468,6 +468,9 @@ public interface Map<K,V> {
          * @since 1.8
          */
         public static <K extends Comparable<? super K>, V> Comparator<Map.Entry<K,V>> comparingByKey() {
+            // (Comparator<Map.Entry<K, V>> & Serializable)  (强制类型转换)
+            // 转换成可序列化的Comparator<Map.Entry<K, V>>对象
+            // 这种强制类型转换可以将一个对象直接转换为Serializable对象。
             return (Comparator<Map.Entry<K, V>> & Serializable)
                 (c1, c2) -> c1.getKey().compareTo(c2.getKey());
         }
@@ -504,6 +507,9 @@ public interface Map<K,V> {
          */
         public static <K, V> Comparator<Map.Entry<K, V>> comparingByKey(Comparator<? super K> cmp) {
             Objects.requireNonNull(cmp);
+            // (Comparator<Map.Entry<K, V>> & Serializable)  (强制类型转换)
+            // 转换成可序列化的Comparator<Map.Entry<K, V>>对象
+            // 这种强制类型转换可以将一个对象直接转换为Serializable对象。
             return (Comparator<Map.Entry<K, V>> & Serializable)
                 (c1, c2) -> cmp.compare(c1.getKey(), c2.getKey());
         }
