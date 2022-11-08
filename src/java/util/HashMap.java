@@ -674,6 +674,31 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             n = (tab = resize()).length;
         // 不为空计算索引位置
         // 如果索引位置是否有节点
+
+        //
+        //　　运算符 % ：模运算，
+        //
+        //　　　　　　（1）、当运算符左边小于右边，结果就等于左边；
+        //
+        //　　　　　　（2）、当运算符左边大于右边，就和算术中的取余是一样的效果。
+
+        // hash % n == hash & (n-1)
+        //解释：
+        //n表示哈希桶的长度，就是hashmap这个实例的容量，刚才说了会是2^n，不设置默认是16，
+        // 那为什么要减1，我们知道16的二进制是10000，减1后就变成1111，这样我们有了一个二进制全部为1的数后就可以和hash值进行&运算。
+        //**&：按位与，都为1才是1**
+
+        //// 假设我的哈希桶的长度是16
+        //// n - 1 即为 15
+        //// 二进制表示为 1111
+        //// 假设 hash值 是 111101001001101010101010111011
+        //// 即
+        //111101001001101010101010111011 // hash
+        //000000000000000000000000001111 // n-1
+        //000000000000000000000000001011 // 结果为 1011 即 11
+
+        // 一个数模上一个偶数（n），结果肯定是小于这个偶数的值，即在[0, n)范围内；数组下标从零开始，妙啊。
+        // 采用二进制位操作 &，相对于%能够提高运算效率
         if ((p = tab[i = (n - 1) & hash]) == null)
             // 索引位置没有节点，直接新建节点放到索引位置
             tab[i] = newNode(hash, key, value, null);
@@ -732,6 +757,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      */
     final Node<K,V>[] resize() {
         Node<K,V>[] oldTab = table;
+        // 原本数组大小
         int oldCap = (oldTab == null) ? 0 : oldTab.length;
         int oldThr = threshold;
         int newCap, newThr = 0;
@@ -740,45 +766,60 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 threshold = Integer.MAX_VALUE;
                 return oldTab;
             }
+            // 注意： 新的容量 = 旧容量 * 2  即扩容大小为原来的两倍
+            // 如果还是小于阈值最大值且旧的容量大于默认阈值。新的扩容阈值为旧的2倍。
             else if ((newCap = oldCap << 1) < MAXIMUM_CAPACITY &&
                      oldCap >= DEFAULT_INITIAL_CAPACITY)
                 newThr = oldThr << 1; // double threshold
         }
+        // oldCap <=0 ,容量变为旧的阈值
         else if (oldThr > 0) // initial capacity was placed in threshold
             newCap = oldThr;
-        else {               // zero initial threshold signifies using defaults
+        else {               // zero initial threshold signifies using defaults 零初始阈值表示使用默认值
             newCap = DEFAULT_INITIAL_CAPACITY;
             newThr = (int)(DEFAULT_LOAD_FACTOR * DEFAULT_INITIAL_CAPACITY);
         }
+        // 如果新的阈值为零，即老的容量乘2大于int最大值或旧的容量还没到默认的容量大小，需要重新计算新的扩容阈值
         if (newThr == 0) {
             float ft = (float)newCap * loadFactor;
             newThr = (newCap < MAXIMUM_CAPACITY && ft < (float)MAXIMUM_CAPACITY ?
                       (int)ft : Integer.MAX_VALUE);
         }
         threshold = newThr;
-        @SuppressWarnings({"rawtypes","unchecked"})
+        @SuppressWarnings({"rawtypes","unchecked"}) //屏蔽一些无关紧要的警告
             Node<K,V>[] newTab = (Node<K,V>[])new Node[newCap];
         table = newTab;
         if (oldTab != null) {
+            // 遍历旧数组
             for (int j = 0; j < oldCap; ++j) {
                 Node<K,V> e;
+                // 获取数组的Node节点
                 if ((e = oldTab[j]) != null) {
+                    // TODO: 2022/10/31 旧值置为空 为什么？ 垃圾回收吗
                     oldTab[j] = null;
                     if (e.next == null)
+                        // 如果数组只有一个节点，直接计算新数组的插入位置
                         newTab[e.hash & (newCap - 1)] = e;
                     else if (e instanceof TreeNode)
+                        // 如果是树结构
                         ((TreeNode<K,V>)e).split(this, newTab, j, oldCap);
                     else { // preserve order
+                        // 是数组
                         Node<K,V> loHead = null, loTail = null;
                         Node<K,V> hiHead = null, hiTail = null;
                         Node<K,V> next;
                         do {
+                            // 循环条件
                             next = e.next;
+                            // 尾插法
+                            // e在新旧数组中的索引位置不变
                             if ((e.hash & oldCap) == 0) {
+                                // 连成链
                                 if (loTail == null)
                                     loHead = e;
                                 else
                                     loTail.next = e;
+                                // 赋值尾
                                 loTail = e;
                             }
                             else {
