@@ -2084,6 +2084,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
          * Forms tree of the nodes linked from this node.
          * @return root of tree
          */
+        // 根据链表生成树，其实就是便利链表，一个一个红黑树插入。
+        // 插入后调用balanceInsertion()，插入后的平衡
         final void treeify(Node<K,V>[] tab) {
             TreeNode<K,V> root = null;
             for (TreeNode<K,V> x = this, next; x != null; x = next) {
@@ -2446,6 +2448,29 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             }
             return root;
         }
+
+        // TODO: 2022/11/11 变色，左旋，右旋
+
+        /**
+         * 变色情况及规则：
+         *      情况：当前节点的父节点是红色，叔叔节点也是红色。
+         *          变换：
+         *              1）父节点，叔叔节点变为黑色
+         *              2） 爷爷节点，变为红色
+         *              3） 把指针定义到爷爷节点，分析爷爷节点的变换规则（因为爷爷节点变为了红色，是否符合红黑书的规则未知）
+         *
+         * 左旋情况：当前父节点是红色，叔叔节点是黑色，且当前节点是右子树。
+         *
+         * 右旋情况及规则：
+         *      当前节点是红色，叔叔节点是黑色，且当前节点是左子树。
+         *              1）父节点变为黑色
+         *              2） 爷爷节点变为红色
+         *              3）旋转
+         *
+         *
+         *
+         */
+
 
         // x：新节点
         static <K,V> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root,
