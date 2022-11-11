@@ -370,19 +370,34 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * Returns x's Class if it is of the form "class C implements
      * Comparable<C>", else null.
      */
+    //如果类C实现了Comparable ,即返回对象x的类C的Class。
     static Class<?> comparableClassFor(Object x) {
         if (x instanceof Comparable) {
-            Class<?> c; Type[] ts, as; Type t; ParameterizedType p;
-            if ((c = x.getClass()) == String.class) // bypass checks
+            // 类实现Comparable 接口
+            Class<?> c;
+            Type[] ts, as;
+            Type t;
+            // 参数化类型,是Type的子接口
+            ParameterizedType p;
+            if ((c = x.getClass()) == String.class) { // bypass checks
+                // 如果x是字符串对象，则返回x.getclass，因为String已经实现了Comparable<String>
                 return c;
-            //getGenericInterfaces ：它返回由该类实现的接口数组
+            }
+
+            //如果存在实现的接口，将接口的数组传给ts（包括参数化类型）
+            //getGenericInterfaces  getInterfaces的区别：一个返回Type[],一个返回Class[](已经被类型擦除了，so)
+            // getGenericInterfaces（）：返回表示直接由该对象表示的类或接口实现的接口的类型。
             if ((ts = c.getGenericInterfaces()) != null) {
                 for (int i = 0; i < ts.length; ++i) {
-                    if (((t = ts[i]) instanceof ParameterizedType) &&
-                        ((p = (ParameterizedType)t).getRawType() ==
-                         Comparable.class) &&
-                        (as = p.getActualTypeArguments()) != null &&
-                        as.length == 1 && as[0] == c) // type arg is c
+                    //我们要判定的是，x是否实现了Comparable<C>,所以，父接口若为Comparable<C>,则
+                    //它应该是一个参数化类型，
+                    //声明此类的接口为Comparable
+                    //实际类型参数的数组不为空
+                    if (((t = ts[i]) instanceof ParameterizedType) && //它应该是一个参数化类型
+                            ((p = (ParameterizedType) t).getRawType() == //声明此类的接口为Comparable
+                                    Comparable.class) &&
+                            (as = p.getActualTypeArguments()) != null && //实际类型参数的数组不为空
+                            as.length == 1 && as[0] == c) // type arg is c  //并且长度为1,且为C
                         return c;
                 }
             }
@@ -2084,36 +2099,52 @@ public class HashMap<K,V> extends AbstractMap<K,V>
          * Forms tree of the nodes linked from this node.
          * @return root of tree
          */
-        // 根据链表生成树，其实就是便利链表，一个一个红黑树插入。
+        // 根据链表生成树，其实就是遍历链表，一个一个红黑树插入。
         // 插入后调用balanceInsertion()，插入后的平衡
         final void treeify(Node<K,V>[] tab) {
             TreeNode<K,V> root = null;
+            // x 为当前树节点节点
             for (TreeNode<K,V> x = this, next; x != null; x = next) {
                 next = (TreeNode<K,V>)x.next;
+                // 将左右节点重置为空
                 x.left = x.right = null;
                 if (root == null) {
+                    // 第一次循环进来
+                    // 设置根节点且为黑色
                     x.parent = null;
                     x.red = false;
+                    //
                     root = x;
                 }
                 else {
                     K k = x.key;
                     int h = x.hash;
                     Class<?> kc = null;
+                    // 从根节点便利
                     for (TreeNode<K,V> p = root;;) {
                         int dir, ph;
                         K pk = p.key;
                         if ((ph = p.hash) > h)
+                            // 当前节点hash小于根节点的hash
                             dir = -1;
                         else if (ph < h)
+                            // 当前节点hash大于根节点hash
                             dir = 1;
                         else if ((kc == null &&
                                   (kc = comparableClassFor(k)) == null) ||
+                               // 找到新key是否实现comparable接口，如果两个key是相同的类，然后在比较两个对象的
                                  (dir = compareComparables(kc, k, pk)) == 0)
+                            // 如果kc 为空 或 两个不是相同的类
+                            // 在通过对象hash比较
+                            // 调用System.identityHashCode(Object o) 比较对象hash码
+                            // 返回给定对象的哈希码，该代码与默认的方法 hashCode() 返回的代码一样，无论给定对象的类是否重写 hashCode()。null 引用的哈希码为 0。
                             dir = tieBreakOrder(k, pk);
 
+                        // dir 小于零指向左子树 dir 大于零指向右子树
+                        // 如果为null 直接插入 如果不为null 则继续比较
                         TreeNode<K,V> xp = p;
                         if ((p = (dir <= 0) ? p.left : p.right) == null) {
+                            // 连接当前节点
                             x.parent = xp;
                             if (dir <= 0)
                                 xp.left = x;
