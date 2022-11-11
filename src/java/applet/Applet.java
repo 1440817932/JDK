@@ -43,6 +43,7 @@ import javax.accessibility.*;
  * Applet Viewer. The <code>Applet</code> class provides a standard
  * interface between applets and their environment.
  *
+ *
  * @author      Arthur van Hoff
  * @author      Chris Warth
  * @since       JDK1.0
