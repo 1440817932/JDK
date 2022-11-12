@@ -2011,22 +2011,33 @@ public class HashMap<K,V> extends AbstractMap<K,V>
          */
         static <K,V> void moveRootToFront(Node<K,V>[] tab, TreeNode<K,V> root) {
             int n;
+            // 树的根节点不为空，数组不为空
             if (root != null && tab != null && (n = tab.length) > 0) {
+                // 树在数组中的下标
                 int index = (n - 1) & root.hash;
+                // 数组位置的第一个节点
                 TreeNode<K,V> first = (TreeNode<K,V>)tab[index];
+                // 根节点不是数组位置的第一个
                 if (root != first) {
                     Node<K,V> rn;
+                    // 移动根节点到数组到数组节点
                     tab[index] = root;
                     TreeNode<K,V> rp = root.prev;
+
+                    // 链表处理
+
                     if ((rn = root.next) != null)
+                        // 根节点第一个节点的next节点的上一个指向根节点的上一个
                         ((TreeNode<K,V>)rn).prev = rp;
                     if (rp != null)
+                        // 根节点第一个节点的next节点的上一个指向根节点的上一个
                         rp.next = rn;
                     if (first != null)
                         first.prev = root;
                     root.next = first;
                     root.prev = null;
                 }
+                // 移动之后会确认下当前数据结构是否符合红黑树性质
                 assert checkInvariants(root);
             }
         }
@@ -2280,7 +2291,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             // p要删除的节点，replacement删除后代替他的节点
             // 删除了一个中间的系欸但，但是他还有子系欸但，肯定是要连接到树上的，此时需要一个节点但来顶替他的位置
             TreeNode<K,V> p = this, pl = left, pr = right, replacement;
-            // 删除树中节点，左右孩纸都不为空时
+            // 删除节点，左右孩纸都不为空时
             if (pl != null && pr != null) {
                 // s=pr，是当前节点的左节点开始遍历，找到最后一个左叶子节点
                 // s是大于当前节点的最小节点
@@ -2300,7 +2311,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 else {
                     TreeNode<K,V> sp = s.parent;
                     //当前节点的指向，替换节点的父节点
-                    if ((p.parent = sp) != null) {
+                        if ((p.parent = sp) != null) {
                         if (s == sp.left)
                             sp.left = p;
                         else
@@ -2309,29 +2320,46 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     if ((s.right = pr) != null)
                         pr.parent = s;
                 }
+                //
                 p.left = null;
+                // 将替换节点的右节点的最小左左节点的右节点的父节点指向源节点位置
                 if ((p.right = sr) != null)
                     sr.parent = p;
+                // 源节点的左节点连接到新节点的左节点位置
                 if ((s.left = pl) != null)
                     pl.parent = s;
+                // 父节点关联
                 if ((s.parent = pp) == null)
+                    // 如果源节点父节点为空，则新节点作为新的根
                     root = s;
                 else if (p == pp.left)
+                    // 如果源节点父节点不为空且左子树不为空
+                    // 将新节点作为根节点的左子树
                     pp.left = s;
                 else
+                    // 否则将新节点作为根节点的右子树
                     pp.right = s;
                 if (sr != null)
+                    // 将替换节点的右节点的最小左左节点不为空
+                    // 赋值给替换节点
                     replacement = sr;
                 else
+                    //否则将原节点作为替换节点
                     replacement = p;
             }
+            // 删除节点，左右孩纸都不为空不成立
             else if (pl != null)
+                // 原节点的左节点做为替换节点
                 replacement = pl;
             else if (pr != null)
+                // 原节点的右节点做为替换节点
                 replacement = pr;
             else
+                //都没有满足原节点作为替换节点
                 replacement = p;
+            // 如果替换节点不为原节点
             if (replacement != p) {
+                // 把原节点的父节点赋值给新节点的父节点
                 TreeNode<K,V> pp = replacement.parent = p.parent;
                 if (pp == null)
                     root = replacement;
