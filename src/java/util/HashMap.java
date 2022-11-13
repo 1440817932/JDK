@@ -394,8 +394,10 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     //声明此类的接口为Comparable
                     //实际类型参数的数组不为空
                     if (((t = ts[i]) instanceof ParameterizedType) && //它应该是一个参数化类型
+                            // getRawType():表示声明此类型的类或接口
                             ((p = (ParameterizedType) t).getRawType() == //声明此类的接口为Comparable
                                     Comparable.class) &&
+                            //getActualTypeArguments()就是获取泛型参数的类型
                             (as = p.getActualTypeArguments()) != null && //实际类型参数的数组不为空
                             as.length == 1 && as[0] == c) // type arg is c  //并且长度为1,且为C
                         return c;
@@ -474,7 +476,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     // DEFAULT_INITIAL_CAPACITY.)
     //
     // 扩容阈值：
-    // 1）当HashMap的个数达到改值，触发扩容
+    // 1）当HashMap的个数达到g该值，触发扩容
     // 2）初始化时的容量，在我们新建HashMap对象时，threshold 还会被用来村初始化时的容量。
     // 3）HashMap 直到我们第一次插入节点时，才会对table进行初始化，避免不必要的空间浪费。
 
@@ -728,7 +730,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             else if (p instanceof TreeNode)
                 e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
             else {
-                // 断键的hash值是否跟节点不相等节点不是红黑树
+                // 判断键的hash值是否跟节点不相等节点不是红黑树
                 for (int binCount = 0; ; ++binCount) {
                     if ((e = p.next) == null) {
                         p.next = newNode(hash, key, value, null);
@@ -895,6 +897,19 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                         newTab[e.hash & (newCap - 1)] = e;
                     else if (e instanceof TreeNode)
                         // 如果是树结构
+                    /**
+                     * 1）在新数组重新计算hash找到节点在新数组位置
+                     * 2） 在新的数组位置计算是否需要转树
+                     *  2.1）不需要：直接插入链表
+                     *  2.2）需要直接
+                     *      2.2.1）遍历当前点的插入（当前节点是已经计算好在新数组位置的链表）
+                     *          2.3.1）获取插入位置
+                     *          2.3.2) 便利根节点
+                     *              1）找到当前节点插入的合适位置
+                     *              2）平衡调整
+                     */
+
+
                         ((TreeNode<K,V>)e).split(this, newTab, j, oldCap);
                     else { // preserve order
                         // 是数组
@@ -2446,63 +2461,69 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         /* ------------------------------------------------------------ */
         // Red-black tree methods, all adapted from CLR
 
+        /**
+         * 节点左旋
+         * @param root 根节点
+         * @param p 要左旋的节点
+         */
         static <K,V> TreeNode<K,V> rotateLeft(TreeNode<K,V> root,
                                               TreeNode<K,V> p) {
             TreeNode<K,V> r, pp, rl;
-            // r ： 为当前节点
+            // r ： 左旋节点的右孩子
             // pp: 当前节点的父节点
-            // rl: 当前节点右节点的左节点
+            // rl: 左旋节点右孩子的左节点
 
-            if (p != null && (r = p.right) != null) {
-                // 原节点的左子树赋值给 原父节点的右子树
+            if (p != null && (r = p.right) != null) {// 要左旋的节点和要左旋的节点的右孩子不为空
+                // 要左旋的节点的右孩子的左节点 赋给 要左旋的节点的右孩子 节点为：rl
                 if ((rl = p.right = r.left) != null)
-                    // 源节点的左节点的父节点要指向原父节点
                     // 注意：两个节点相连，需要将A节点的左或右节点指向B，B的父节点也需要指向A
-                    rl.parent = p;
-                // 处理源节点：因为左移源节点需要做原父节点的父节点，
-                // 第一步：需要将源节点的父节点赋值给源节点的父节点：
-                // 比如a为原父节点，b为源节点，  那么左移需要b作为a的父节点，所以需要将a的父节点赋值给b的父节点
-                // 然后，将a的父节点指向b节点，b的左子树需要指向a节点 组成链
-                // 最后原a 的父节点的左子树需要指向新的b节点（此处为）
+                    rl.parent = p;// 设置rl和要左旋的节点的父子关系
+
+                // 将要左旋的节点的右孩子的父节点  指向 要左旋的节点的父节点（相当于右孩子提升了一层），
                 if ((pp = r.parent = p.parent) == null)
+                    // 此时如果父节点为空， 说明r 已经是顶层节点了，应该作为root 并且标为黑色
                     (root = r).red = false;
-                // 这里是比较原本的pp.left，所以走这一步
+                    // 如果父节点不为空 并且 要左旋的节点是个左孩子
                 else if (pp.left == p)
+                    // 设置r和父节点的父子关系【之前只是孩子认了爹，爹还没有答应，这一步爹也认了孩子】
                     pp.left = r;
-                else
-                    pp.right = r;
-                r.left = p;
-                p.parent = r;
+                else // 要左旋的节点是个右孩子
+                    pp.right = r; // 爹认孩子
+                r.left = p; // 要左旋的节点  作为 他的右孩子的左节点
+                p.parent = r;// 要左旋的节点的右孩子  作为  他的父节点
             }
-            // 为什么这个root是原节点
+            // 返回根节点
             return root;
         }
 
+        /**
+         * 节点右旋
+         * @param root 根节点
+         * @param p 要右旋的节点
+         * @return 返回根节点
+         */
         static <K,V> TreeNode<K,V> rotateRight(TreeNode<K,V> root,
                                                TreeNode<K,V> p) {
             TreeNode<K,V> l, pp, lr;
-            // l: 原节点的父节点
+            // l: 需要旋转节点的左节点
             // pp： 原爷爷的父节点节点
-            // lr：源节点的父节点的右子树
-            if (p != null && (l = p.left) != null) {
-                // 原节点的父节点的右子树，需要赋值给爷爷节点的左子树
+            // lr：需要旋转节点的左节点的右子树
+            if (p != null && (l = p.left) != null) {// 要右旋的节点不为空以及要右旋的节点的左孩子不为空
+                // 要右旋的节点的左孩子的右节点 赋给 要右旋节点的左孩子 节点为：lr
                 if ((lr = p.left = l.right) != null)
-                    // 然后原节点的右子树的父节点需要指向爷爷节点
+                    // 设置lr和要右旋的节点的父子关系【之前只是爹认了孩子，孩子还没有答应，这一步孩子也认了爹】
                     lr.parent = p;
-                // 比较爷爷节点的父节点是否有值
-                // 并且赋值给原父节点的父节点
+                // 将要右旋的节点的左孩子的父节点  指向 要右旋的节点的父节点，相当于左孩子提升了一层，
+                // 此时如果父节点为空， 说明l 已经是顶层节点了，应该作为root 并且标为黑色
                 if ((pp = l.parent = p.parent) == null)
                     (root = l).red = false;
-                // 有值的话  需要将爷爷节点的父节点指针指向当前的父节点
-                // 没有值判断爷爷节点的右子树是否等于源节点的父节点，等于就将父节点赋值给爷爷节点的右子树
-                else if (pp.right == p)
-                    pp.right = l;
-                // 否则赋值给爷爷节点的左子树
-                else
-                    pp.left = l;
-                // 父节点的右子树指向原来的爷爷节点
+                else if (pp.right == p)// 如果父节点不为空 并且 要右旋的节点是个右孩子
+                    pp.right = l;// 设置l和父节点的父子关系【之前只是孩子认了爹，爹还没有答应，这一步爹也认了孩子】
+                else// 要右旋的节点是个左孩子
+                    pp.left = l; //爹也认了孩子
+                // 要右旋的节点 作为 他左孩子的右节点
                 l.right = p;
-                // 爷爷的父节点指向父节点
+                // 要右旋的节点的父节点 指向 他的左孩子
                 p.parent = l;
             }
             return root;
@@ -2518,10 +2539,10 @@ public class HashMap<K,V> extends AbstractMap<K,V>
          *              2） 爷爷节点，变为红色
          *              3） 把指针定义到爷爷节点，分析爷爷节点的变换规则（因为爷爷节点变为了红色，是否符合红黑书的规则未知）
          *
-         * 左旋情况：当前父节点是红色，叔叔节点是黑色，且当前节点是右子树。
+         * 左旋情况：当前父节点是红色，叔叔节点是黑色（或空），且当前节点是右子树。
          *
          * 右旋情况及规则：
-         *      当前节点是红色，叔叔节点是黑色，且当前节点是左子树。
+         *      当前节点是红色，叔叔节点是黑色（或空），且当前节点是左子树。
          *              1）父节点变为黑色
          *              2） 爷爷节点变为红色
          *              3）旋转
@@ -2530,70 +2551,100 @@ public class HashMap<K,V> extends AbstractMap<K,V>
          *
          */
 
+        /**
+         * 红黑树的定义:
+         *
+         * 性质1. 节点是红色或黑色。
+         *
+         * 性质2. 根节点是黑色。
+         *
+         * 性质3.所有叶子都是黑色。（叶子是NUIL节点）
+         *
+         * 性质4. 每个红色节点的两个子节点都是黑色。（从每个叶子到根的所有路径上不能有两个连续的红色节点）
+         *
+         * 性质5. 从任一节点到其每个叶子的所有路径都包含相同数目的黑色节点。
+         */
 
-        // x：新节点
+        /**
+         * 红黑树插入节点后，需要重新平衡
+         * @param root 当前根节点
+         * @param x 新插入的节点
+         * @return 返回重新平衡后的根节点
+         */
         static <K,V> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root,
                                                     TreeNode<K,V> x) {
             // 插入开始赋值为红节点
             x.red = true;
-            // xp：父节点  xpp：爷爷节点 xppl：爷爷左子树 xppr： 爷爷右子树
+            /*
+             * 这一步即定义了变量，又开起了循环，循环没有控制条件，只能从内部跳出
+             * xp：当前节点的父节点、xpp：爷爷节点、xppl：左叔叔节点、xppr：右叔叔节点
+             */
             for (TreeNode<K,V> xp, xpp, xppl, xppr;;) {
-                // 如果父节点为空，说明只有一个节点，直接返回
-                if ((xp = x.parent) == null) {
+                // 如果父节点为空
+                // 说明当前节点就是根节点，那么把当前节点标为黑色，返回当前节点
+                if ((xp = x.parent) == null) { // L1
                     x.red = false;
                     return x;
                 }
-                // 父节点不是红色，或者爷爷节点为空直接返回
-                else if (!xp.red || (xpp = xp.parent) == null)
+                // 父节点不为空
+                // 如果父节点为黑色 或者 【（父节点为红色 但是 爷爷节点为空） -> 这种情况何时出现？】
+                else if (!xp.red || (xpp = xp.parent) == null) // L2
                     return root;
                 // 判断父节点是左子树还是右子树
-                if (xp == (xppl = xpp.left)) {
+                if (xp == (xppl = xpp.left)) { // L3
                     // 进来说明是父是爷爷的左子树
-                    if ((xppr = xpp.right) != null && xppr.red) {
+                    // 如果右叔叔不为空 并且 为红色
+                    if ((xppr = xpp.right) != null && xppr.red) { // L3_1
+                        /**
+                         * 变色情况
+                         */
                         // 爷爷右子树是红色
                         // 父叔节点变黑
                         xppr.red = false;
                         xp.red = false;
                         // 爷爷变红
                         xpp.red = true;
-                        // 当前节点指向爷爷
+                        // 运行到这里之后，就又会进行下一轮的循环了，将爷爷节点当做处理的起始节点
                         x = xpp;
                     }
-                    else {
-                        // 爷爷右子树是黑的
-                        // 当前节点是右子树
-                        if (x == xp.right) {
-                            // 当前节点是父节点的右子树 左移
+                    else { // L3_2
+                        // 进来说明是父是爷爷的左子树
+                        // 如果右叔叔为空 或 黑色
+                        if (x == xp.right) { // L3_2_1
+                            // 当前节点是父节点的右子树
+                            /**
+                             * 父节点左旋
+                             */
                             root = rotateLeft(root, x = xp);
-                            xpp = (xp = x.parent) == null ? null : xp.parent;
+                            xpp = (xp = x.parent) == null ? null : xp.parent; // 获取爷爷节点
                         }
-                        if (xp != null) {
-                            xp.red = false;
-                            if (xpp != null) {
-                                xpp.red = true;
-                                root = rotateRight(root, xpp);
+                        if (xp != null) {// 如果父节点不为空 // L3_2_2
+                            xp.red = false; // 父节点 置为黑色
+                            if (xpp != null) {// 如果爷爷节点不为空
+                                xpp.red = true; // 爷爷节点置为红色
+                                root = rotateRight(root, xpp); //爷爷节点右旋
                             }
                         }
                     }
                 }
                 // 父节点是爷爷节点的右子树
-                else {
-                    if (xppl != null && xppl.red) {
-                        xppl.red = false;
-                        xp.red = false;
-                        xpp.red = true;
-                        x = xpp;
+                else { // L4
+                    if (xppl != null && xppl.red) {// 如果左叔叔是红色 // L4_1
+                        xppl.red = false; // 左叔叔置为 黑色
+                        xp.red = false; // 父节点置为黑色
+                        xpp.red = true; // 爷爷置为红色
+                        x = xpp; // 运行到这里之后，就又会进行下一轮的循环了，将爷爷节点当做处理的起始节点
                     }
-                    else {
-                        if (x == xp.left) {
-                            root = rotateRight(root, x = xp);
-                            xpp = (xp = x.parent) == null ? null : xp.parent;
+                    else { // 如果左叔叔为空或者是黑色 // L4_2
+                        if (x == xp.left) { // 如果当前节点是个左孩子 // L4_2_1
+                            root = rotateRight(root, x = xp); // 针对父节点做右旋
+                            xpp = (xp = x.parent) == null ? null : xp.parent; // 获取爷爷节点
                         }
-                        if (xp != null) {
-                            xp.red = false;
-                            if (xpp != null) {
-                                xpp.red = true;
-                                root = rotateLeft(root, xpp);
+                        if (xp != null) {// 如果父节点不为空 // L4_2_4
+                            xp.red = false;// 父节点置为黑色
+                            if (xpp != null) {// 如果爷爷节点不为空
+                                xpp.red = true; // 爷爷节点置为红色
+                                root = rotateLeft(root, xpp); // 针对爷爷节点做左旋
                             }
                         }
                     }
