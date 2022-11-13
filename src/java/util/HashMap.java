@@ -422,7 +422,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     static final int tableSizeFor(int cap) {
         // 处理本身cap是2的N次方情况
         int n = cap - 1;
-        //“ | ” 或等于  如：a| = b -> a = a | b
+        // “ | ” 或等于  如：a| = b -> a = a | b
         // " >>> " 无符号右移 右移后左边空出的位用 0 补充， 移出右边的位被丢弃
         n |= n >>> 1;
         n |= n >>> 2;
