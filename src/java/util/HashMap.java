@@ -2129,7 +2129,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         // 插入后调用balanceInsertion()，插入后的平衡
         final void treeify(Node<K,V>[] tab) {
             TreeNode<K,V> root = null;
-            // x 为当前树节点节点
+            // x 链表中的数据
             for (TreeNode<K,V> x = this, next; x != null; x = next) {
                 next = (TreeNode<K,V>)x.next;
                 // 将左右节点重置为空
@@ -2146,7 +2146,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     K k = x.key;
                     int h = x.hash;
                     Class<?> kc = null;
-                    // 从根节点便利
+                    // 从根节点便利，找到插入位置
                     for (TreeNode<K,V> p = root;;) {
                         int dir, ph;
                         K pk = p.key;
@@ -2161,7 +2161,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                                // 找到新key是否实现comparable接口，如果两个key是相同的类，然后在比较两个对象的
                                  (dir = compareComparables(kc, k, pk)) == 0)
                             // 如果kc 为空 或 两个不是相同的类
-                            // 在通过对象hash比较
+                            // 再通过对象hash比较
                             // 调用System.identityHashCode(Object o) 比较对象hash码
                             // 返回给定对象的哈希码，该代码与默认的方法 hashCode() 返回的代码一样，无论给定对象的类是否重写 hashCode()。null 引用的哈希码为 0。
                             dir = tieBreakOrder(k, pk);
@@ -2513,7 +2513,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 if ((lr = p.left = l.right) != null)
                     // 设置lr和要右旋的节点的父子关系【之前只是爹认了孩子，孩子还没有答应，这一步孩子也认了爹】
                     lr.parent = p;
-                // 将要右旋的节点的左孩子的父节点  指向 要右旋的节点的父节点，相当于左孩子提升了一层，
+                // 将要右旋的节点的左孩子的父节点  指向 要右旋的节点的父节点（相当于左孩子提升了一层）
                 // 此时如果父节点为空， 说明l 已经是顶层节点了，应该作为root 并且标为黑色
                 if ((pp = l.parent = p.parent) == null)
                     (root = l).red = false;
@@ -2655,34 +2655,41 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         static <K,V> TreeNode<K,V> balanceDeletion(TreeNode<K,V> root,
                                                    TreeNode<K,V> x) {
             for (TreeNode<K,V> xp, xpl, xpr;;)  {
-                if (x == null || x == root)
+                if (x == null || x == root)// L1
                     return root;
-                else if ((xp = x.parent) == null) {
+                else if ((xp = x.parent) == null) {// L2
                     x.red = false;
                     return x;
                 }
-                else if (x.red) {
+                else if (x.red) {// L3
                     x.red = false;
                     return root;
                 }
-                else if ((xpl = xp.left) == x) {
-                    if ((xpr = xp.right) != null && xpr.red) {
+                /**
+                 * x 颜色是黑色
+                 */
+                else if ((xpl = xp.left) == x) {// L4  //替换节点为父节点的左孩子
+                    if ((xpr = xp.right) != null && xpr.red) {// L4.1 // 兄弟节点为红色
+                        // 兄弟变黑 父变红
                         xpr.red = false;
                         xp.red = true;
+                        // 父节点左旋
                         root = rotateLeft(root, xp);
                         xpr = (xp = x.parent) == null ? null : xp.right;
                     }
-                    if (xpr == null)
+                    if (xpr == null)// L4.2
+                        // 移动当前节点到xp
                         x = xp;
-                    else {
+                    else {// L4.3
                         TreeNode<K,V> sl = xpr.left, sr = xpr.right;
                         if ((sr == null || !sr.red) &&
-                            (sl == null || !sl.red)) {
+                            (sl == null || !sl.red)) { // L4.3.1 // 兄弟节点两个孩子节点都为黑 或 一个空另一个黑
                             xpr.red = true;
+                            // 替换节点指向父节点
                             x = xp;
                         }
-                        else {
-                            if (sr == null || !sr.red) {
+                        else {// L4.3.2 // 兄弟节点两个孩子节点有一个红或两个红
+                            if (sr == null || !sr.red) {// L4.3.2.1
                                 if (sl != null)
                                     sl.red = false;
                                 xpr.red = true;
@@ -2690,12 +2697,12 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                                 xpr = (xp = x.parent) == null ?
                                     null : xp.right;
                             }
-                            if (xpr != null) {
+                            if (xpr != null) {// L4.3.2.2
                                 xpr.red = (xp == null) ? false : xp.red;
                                 if ((sr = xpr.right) != null)
                                     sr.red = false;
                             }
-                            if (xp != null) {
+                            if (xp != null) { // L4.3.2.3
                                 xp.red = false;
                                 root = rotateLeft(root, xp);
                             }
@@ -2703,7 +2710,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                         }
                     }
                 }
-                else { // symmetric
+                else { // symmetric  // L5 // 替换节点为父节点的右孩子
                     if (xpl != null && xpl.red) {
                         xpl.red = false;
                         xp.red = true;
