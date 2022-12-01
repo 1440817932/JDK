@@ -51,6 +51,11 @@ import java.util.function.Consumer;
  * @see Iterable
  * @since 1.2
  */
+
+/**
+ * Iterator是支持fail-fast机制的：当多个线程对同一个集合的内容进行操作时，就可能会产生fail-fast事件。
+ * 抛出ConcurrentModificationException异常
+ */
 public interface Iterator<E> {
     /**
      * Returns {@code true} if the iteration has more elements.

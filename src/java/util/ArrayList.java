@@ -252,8 +252,10 @@ public class ArrayList<E> extends AbstractList<E>
     private void grow(int minCapacity) {
         // overflow-conscious code
         int oldCapacity = elementData.length;
+        // 扩容1.5 倍
         int newCapacity = oldCapacity + (oldCapacity >> 1);
         if (newCapacity - minCapacity < 0)
+            // 旧容量扩容1.5倍后，比扩容的容量还小，使用赋值的
             newCapacity = minCapacity;
         if (newCapacity - MAX_ARRAY_SIZE > 0)
             newCapacity = hugeCapacity(minCapacity);
@@ -261,6 +263,7 @@ public class ArrayList<E> extends AbstractList<E>
         elementData = Arrays.copyOf(elementData, newCapacity);
     }
 
+    // 巨大的容量
     private static int hugeCapacity(int minCapacity) {
         if (minCapacity < 0) // overflow
             throw new OutOfMemoryError();
@@ -537,6 +540,11 @@ public class ArrayList<E> extends AbstractList<E>
      * Private remove method that skips bounds checking and does not
      * return the value removed.
      */
+
+    /**
+     * 可以发现，集合的remove操作只修改了modCount，而没有修改expectedModCount ，这就导致了modCount和expectedModCount 不一致。
+     * @param index
+     */
     private void fastRemove(int index) {
         modCount++;
         int numMoved = size - index - 1;
@@ -706,6 +714,7 @@ public class ArrayList<E> extends AbstractList<E>
      *         or if the specified collection is null
      * @see Collection#contains(Object)
      */
+    // retainAll: 保留全部
     public boolean retainAll(Collection<?> c) {
         Objects.requireNonNull(c);
         return batchRemove(c, true);
@@ -859,6 +868,10 @@ public class ArrayList<E> extends AbstractList<E>
             return (E) elementData[lastRet = i];
         }
 
+        /**
+         * iterator的remove方法首先会调用集合list的remove方法，导致modCount++，
+         * 接下来会执行expectedModCount = modCount，确保expectedModCount 和 modCount相同。
+         */
         public void remove() {
             if (lastRet < 0)
                 throw new IllegalStateException();
