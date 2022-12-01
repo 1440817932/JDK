@@ -850,12 +850,15 @@ public class HashMap<K,V> extends AbstractMap<K,V>
       *
       *
       */
-    final Node<K,V>[] resize() {
+    final Node<K,V>[] resize() {// 调整
         Node<K,V>[] oldTab = table;
         // 原本数组大小
         int oldCap = (oldTab == null) ? 0 : oldTab.length;
         // 扩容阈值
         int oldThr = threshold;
+        /**
+         * 先算出新的 扩容阈值 和 容量
+         */
         int newCap, newThr = 0;
         if (oldCap > 0) {
             if (oldCap >= MAXIMUM_CAPACITY) {
@@ -891,7 +894,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 Node<K,V> e;
                 // 获取数组的Node节点
                 if ((e = oldTab[j]) != null) {
-                    // TODO: 2022/10/31 旧值置为空 为什么？ 垃圾回收吗
+                    // 2022/10/31 旧值置为空 为什么？ 重新计算在数组位置
                     oldTab[j] = null;
                     if (e.next == null)
                         // 如果数组只有一个节点，直接计算新数组的插入位置
@@ -905,7 +908,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                      *  2.2）需要直接
                      *      2.2.1）遍历当前点的插入（当前节点是已经计算好在新数组位置的链表）
                      *          2.3.1）获取插入位置
-                     *          2.3.2) 便利根节点
+                     *          2.3.2) 遍历根节点
                      *              1）找到当前节点插入的合适位置
                      *              2）平衡调整
                      */
