@@ -854,6 +854,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         Node<K,V>[] oldTab = table;
         // 原本数组大小
         int oldCap = (oldTab == null) ? 0 : oldTab.length;
+        // 扩容阈值
         int oldThr = threshold;
         int newCap, newThr = 0;
         if (oldCap > 0) {
@@ -867,7 +868,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                      oldCap >= DEFAULT_INITIAL_CAPACITY)
                 newThr = oldThr << 1; // double threshold
         }
-        // oldCap <=0 ,容量变为旧的阈值
+        // oldCap <= 0 ,容量变为旧的阈值
         else if (oldThr > 0) // initial capacity was placed in threshold
             newCap = oldThr;
         else {               // zero initial threshold signifies using defaults 零初始阈值表示使用默认值
@@ -2318,7 +2319,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     s = sl;
                 // 颜色交换，要删除的节点，替换他的节点
                 boolean c = s.red; s.red = p.red; p.red = c; // swap colors
-                TreeNode<K,V> sr = s.right;   // sr ： 替换节点的右子树
+                TreeNode<K,V> sr = s.right;   // sr ： 替换节点的右子树(因为最小左子树可能有右儿子)
                 TreeNode<K,V> pp = p.parent;  // pp： 删除节点的父节点
                 // 位置交换
                 // 删除节点右子树没有左子树（s本来是右节点最小左节点）
@@ -2383,6 +2384,9 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 replacement = p;
             // 如果替换节点不为原节点
             if (replacement != p) {
+                /**
+                 *  到这里已经是将删除的节点和代替它的节点交换完成
+                 */
                 // 把原节点的父节点赋值给新节点的父节点
                 TreeNode<K,V> pp = replacement.parent = p.parent;
                 if (pp == null)
@@ -2546,6 +2550,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         // TODO: 2022/11/11 变色，左旋，右旋
 
         /**
+         * 插入平衡调整
          * 变色情况及规则：
          *      情况：当前节点的父节点是红色，叔叔节点也是红色。
          *          变换：
@@ -2553,9 +2558,9 @@ public class HashMap<K,V> extends AbstractMap<K,V>
          *              2） 爷爷节点，变为红色
          *              3） 把指针定义到爷爷节点，分析爷爷节点的变换规则（因为爷爷节点变为了红色，是否符合红黑书的规则未知）
          *
-         * 左旋情况：当前父节点是红色，叔叔节点是黑色（或空），且当前节点是右子树。
+         * 左旋情况（父节点左旋）：当前父节点是红色，叔叔节点是黑色（或空），且当前节点是右子树。
          *
-         * 右旋情况及规则：
+         * 右旋情况及规则（爷爷节点右旋）：
          *      当前节点是红色，叔叔节点是黑色（或空），且当前节点是左子树。
          *              1）父节点变为黑色
          *              2） 爷爷节点变为红色
@@ -2677,7 +2682,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         static <K,V> TreeNode<K,V> balanceDeletion(TreeNode<K,V> root,
                                                    TreeNode<K,V> x) {
             /**
-             * x.parent ：是替换了删除节点位置的节点呀
+             * x.parent ：是替换了（交换后）删除节点位置的节点呀
              */
             for (TreeNode<K,V> xp, xpl, xpr;;)  {
                 if (x == null || x == root)// L1
@@ -2712,7 +2717,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     /**
                      *                       进入下一个循环
                      */
-                    else {// L4.3 兄弟左孩子不为空
+                    else {// L4.3 兄弟（黑色）不为空
                         /**
                          * sl：兄弟节点的左子树
                          * sr：兄弟节点的右子树
@@ -2741,7 +2746,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                                 xpr = (xp = x.parent) == null ?
                                     null : xp.right;
                             }
-                            if (xpr != null) {// L4.3.2.2 右子树不等于空
+                            if (xpr != null) {// L4.3.2.2 兄弟不等于空
                                 xpr.red = (xp == null) ? false : xp.red; // 将父节点颜色給兄弟
                                 if ((sr = xpr.right) != null) // 兄弟右孩子不为空
                                     sr.red = false; // 兄弟右孩子变黑
