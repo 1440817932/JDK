@@ -92,7 +92,15 @@ public class HashSet<E>
 {
     static final long serialVersionUID = -5024744406713321676L;
 
-    private transient HashMap<E,Object> map;
+    // #*transient关键字
+    //    transient关键字只能修饰变量，而不能修饰方法和类。
+    //    一旦变量被transient修饰，变量将不再是对象持久化的一部分，该变量内容在序列化后无法获得访问。
+    //
+    // 2、应用场景
+    //  1）一些安全性的信息，比如密码，一般情况下是不能离开JVM的，不能被序列化。
+    //
+    //  2）类中的字段值可以根据其它字段推导出来，如一个长方形类有三个属性长度、宽度、面积，面积不需要序列化。
+    private transient HashMap<E, Object> map;
 
     // Dummy value to associate with an Object in the backing Map
     private static final Object PRESENT = new Object();

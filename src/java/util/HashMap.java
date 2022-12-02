@@ -1630,6 +1630,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             current = next = null;
             index = 0;
             if (t != null && size > 0) { // advance to first entry
+                // 为了在数组中找到下一个，并赋值next
                 do {} while (index < t.length && (next = t[index++]) == null);
             }
         }
@@ -2073,13 +2074,14 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 int ph, dir; K pk;
                 // 获取当前节点的左孩子、右孩子。定义一个对象q用来存储并返回找到的对象
                 TreeNode<K,V> pl = p.left, pr = p.right, q;
+                // 从根节点开始找，根节点hash大于要查找的值说明需要查找的在左边。
                 if ((ph = p.hash) > h)
                     p = pl;
                 else if (ph < h)
                     p = pr;
                 else if ((pk = p.key) == k || (k != null && k.equals(pk)))
                     return p;
-                    // 执行到这里说明 hash比对相同，但是pk和k不相等
+                    // 执行到这里说明 hash比对相同，但是pk和k不相等（ k.equals(pk) == false）
                 else if (pl == null)
                     p = pr;
                 else if (pr == null)

@@ -401,6 +401,7 @@ public class Hashtable<K,V>
         Entry<?,?>[] oldMap = table;
 
         // overflow-conscious code
+        // 扩容大小: 两倍加一
         int newCapacity = (oldCapacity << 1) + 1;
         if (newCapacity - MAX_ARRAY_SIZE > 0) {
             if (oldCapacity == MAX_ARRAY_SIZE)
@@ -419,7 +420,10 @@ public class Hashtable<K,V>
                 Entry<K,V> e = old;
                 old = old.next;
 
+                // %是求模运算符
                 int index = (e.hash & 0x7FFFFFFF) % newCapacity;
+                // 把新的做数组第一个，新的下一个指向原来位置的Entry
+                // 头插？
                 e.next = (Entry<K,V>)newMap[index];
                 newMap[index] = e;
             }
@@ -519,8 +523,10 @@ public class Hashtable<K,V>
             if ((e.hash == hash) && e.key.equals(key)) {
                 modCount++;
                 if (prev != null) {
+                    // 需要删除的节点不是第一个
                     prev.next = e.next;
                 } else {
+                    // 需要删除的节点是第一个
                     tab[index] = e.next;
                 }
                 count--;

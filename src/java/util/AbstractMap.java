@@ -711,6 +711,14 @@ public abstract class AbstractMap<K,V> implements Map<K,V> {
      *
      * @since 1.6
      */
+    /**
+     * Immutable 不变的
+     * SimpleImmutableEntry 简单不可变项
+     *
+     *
+     * @param <K>
+     * @param <V>
+     */
     public static class SimpleImmutableEntry<K,V>
         implements Entry<K,V>, java.io.Serializable
     {

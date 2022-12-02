@@ -32,6 +32,12 @@ package java.lang.reflect;
  *
  * @since 1.5
  */
+
+/**
+ *
+ * Type类型是Java中所有类型的通用超级接口编程语言。
+ * 这些包括原始类型、参数化类型、数组类型、类型变量和基元类型。
+ */
 public interface Type {
     /**
      * Returns a string describing this type, including information
