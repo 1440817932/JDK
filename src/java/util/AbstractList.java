@@ -330,6 +330,7 @@ public abstract class AbstractList<E> extends AbstractCollection<E> implements L
     private class Itr implements Iterator<E> {
         /**
          * Index of element to be returned by subsequent call to next.
+         * 后续调用 next 要返回的元素的索引。
          */
         int cursor = 0;
 
@@ -337,6 +338,9 @@ public abstract class AbstractList<E> extends AbstractCollection<E> implements L
          * Index of element returned by most recent call to next or
          * previous.  Reset to -1 if this element is deleted by a call
          * to remove.
+         */
+        /**
+         * 最近调用下一个或上一个返回的元素索引。如果此元素被要删除的调用删除，则重置为 -1。
          */
         int lastRet = -1;
 
@@ -610,6 +614,10 @@ public abstract class AbstractList<E> extends AbstractCollection<E> implements L
     }
 }
 
+/**
+ * 截取列表
+ * @param <E>
+ */
 class SubList<E> extends AbstractList<E> {
     private final AbstractList<E> l;
     private final int offset;
@@ -625,6 +633,7 @@ class SubList<E> extends AbstractList<E> {
                                                ") > toIndex(" + toIndex + ")");
         l = list;
         offset = fromIndex;
+        // 根据截取的始末得到大小
         size = toIndex - fromIndex;
         this.modCount = l.modCount;
     }

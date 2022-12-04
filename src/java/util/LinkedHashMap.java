@@ -209,10 +209,28 @@ public class LinkedHashMap<K,V>
     transient LinkedHashMap.Entry<K,V> tail;
 
     /**
+     * 此链接哈希映射的迭代排序方法：
      * The iteration ordering method for this linked hash map: <tt>true</tt>
      * for access-order, <tt>false</tt> for insertion-order.
-     *
+     * 如果accessOrder为true的话，则会把访问过的元素放在链表后面，放置顺序是访问的顺序
+     * 如果accessOrder为flase的话，则按插入顺序来遍历
      * @serial
+     */
+    /*
+    public void fun2() throws Exception {
+        LinkedHashMap<String, String> accessOrderTrue = new LinkedHashMap<>(16, 0.75f, true);
+        accessOrderTrue.put("1","1");
+        accessOrderTrue.put("2","2");
+        accessOrderTrue.put("3","3");
+        accessOrderTrue.put("4","4");
+        System.out.println("acessOrderTure"+accessOrderTrue);
+        accessOrderTrue.get("2");
+        accessOrderTrue.get("3");
+        System.out.println("获取了数据"+accessOrderTrue);
+    }
+    //控制台输出
+    acessOrderTure{1=1, 2=2, 3=3, 4=4}
+    获取了数据{1=1, 4=4, 2=2, 3=3}
      */
     final boolean accessOrder;
 
@@ -230,7 +248,8 @@ public class LinkedHashMap<K,V>
         }
     }
 
-    // apply src's links to dst
+    // apply src's links to dst ——> 将 src 的链接应用于 dst
+    // 转移链接
     private void transferLinks(LinkedHashMap.Entry<K,V> src,
                                LinkedHashMap.Entry<K,V> dst) {
         LinkedHashMap.Entry<K,V> b = dst.before = src.before;
@@ -247,6 +266,7 @@ public class LinkedHashMap<K,V>
 
     // overrides of HashMap hook methods
 
+    // 重新初始化
     void reinitialize() {
         super.reinitialize();
         head = tail = null;
@@ -302,7 +322,8 @@ public class LinkedHashMap<K,V>
         }
     }
 
-    void afterNodeAccess(Node<K,V> e) { // move node to last
+    // 节点访问后
+    void afterNodeAccess(Node<K,V> e) { // move node to last 将节点移动到最后一个
         LinkedHashMap.Entry<K,V> last;
         if (accessOrder && (last = tail) != e) {
             LinkedHashMap.Entry<K,V> p =

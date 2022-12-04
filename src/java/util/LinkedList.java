@@ -410,7 +410,10 @@ public class LinkedList<E>
         if (numNew == 0)
             return false;
 
+        // pred：插入位置的上一个
+        // succ：插入位置原本的值
         Node<E> pred, succ;
+        // 如果大小等于列表大小
         if (index == size) {
             succ = null;
             pred = last;
@@ -422,10 +425,13 @@ public class LinkedList<E>
         for (Object o : a) {
             @SuppressWarnings("unchecked") E e = (E) o;
             Node<E> newNode = new Node<>(pred, e, null);
+            // 如果插入位置上一个是空，说明是第一个
             if (pred == null)
                 first = newNode;
             else
+                // 否则连接上一个
                 pred.next = newNode;
+            // 插入值代替插入的上一个
             pred = newNode;
         }
 
@@ -566,6 +572,7 @@ public class LinkedList<E>
     Node<E> node(int index) {
         // assert isElementIndex(index);
 
+        //小于列表的一半，重前面遍历，否则从后面遍历
         if (index < (size >> 1)) {
             Node<E> x = first;
             for (int i = 0; i < index; i++)
@@ -818,11 +825,14 @@ public class LinkedList<E>
      * Removes the last occurrence of the specified element in this
      * list (when traversing the list from head to tail).  If the list
      * does not contain the element, it is unchanged.
-     *
+     *      删除此元素中指定元素的最后一个匹配项
+     *      列表（从头到尾遍历列表时）。 如果列表
+     *      不包含该元素，它保持不变。
      * @param o element to be removed from this list, if present
      * @return {@code true} if the list contained the specified element
      * @since 1.6
      */
+    // 删除上次出现次数
     public boolean removeLastOccurrence(Object o) {
         if (o == null) {
             for (Node<E> x = last; x != null; x = x.prev) {

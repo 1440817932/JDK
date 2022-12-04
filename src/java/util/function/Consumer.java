@@ -38,6 +38,35 @@ import java.util.Objects;
  *
  * @since 1.8
  */
+/*
+@Data
+@Accessors(chain = true)
+@AllArgsConstructor
+public class Person {
+    private Integer age;
+    private String name;
+}
+
+List<Person> lisiList = new ArrayList<>();
+Consumer<Person> consumer  = x -> {
+    if (x.getName().equals("lisi")){
+        lisiList.add(x);
+    }
+};
+Stream.of(
+        new Person(21,"zhangsan"),
+        new Person(22,"lisi"),
+        new Person(23,"wangwu"),
+        new Person(24,"wangwu"),
+        new Person(23,"lisi"),
+        new Person(26,"lisi"),
+        new Person(26,"zhangsan")
+).forEach(consumer);
+
+System.out.println(JSON.toJSONString(lisiList));
+结果：[{"age":22,"name":"lisi"},{"age":23,"name":"lisi"},{"age":26,"name":"lisi"}]
+
+ */
 @FunctionalInterface
 public interface Consumer<T> {
 

@@ -131,6 +131,7 @@ public class ArrayList<E> extends AbstractList<E>
      * empty ArrayList with elementData == DEFAULTCAPACITY_EMPTY_ELEMENTDATA
      * will be expanded to DEFAULT_CAPACITY when the first element is added.
      */
+    // elementData: 就是底层存放数据的数组对象
     transient Object[] elementData; // non-private to simplify nested class access
 
     /**
@@ -138,6 +139,7 @@ public class ArrayList<E> extends AbstractList<E>
      *
      * @serial
      */
+    // size:指的是集合中元素的个数，也就是集合的大小（size不是容量）。
     private int size;
 
     /**
@@ -231,6 +233,8 @@ public class ArrayList<E> extends AbstractList<E>
         modCount++;
 
         // overflow-conscious code
+        // size:指的是集合中元素的个数，也就是集合的大小（size不是容量）。minCapacity = size + 1
+        // 添加元素后集合的大小(size)超过存放对象数组的大小(length)。
         if (minCapacity - elementData.length > 0)
             grow(minCapacity);
     }
@@ -240,6 +244,23 @@ public class ArrayList<E> extends AbstractList<E>
      * Some VMs reserve some header words in an array.
      * Attempts to allocate larger arrays may result in
      * OutOfMemoryError: Requested array size exceeds VM limit
+     */
+    // TODO: 2022/12/4 Integer.MAX_VALUE - 8: 为什么要减8？
+    /**
+     * 因为自己作为数组，除了存储数据本身以外，还需要32 bytes的大小来存储对象头（object header）信息。
+     * Java每个对象都包含了对象头，HotSpot虚拟机中对象头的大小不会超过32 bytes，所以最大容量减8才不会溢出。
+     */
+    /**
+     * Java对象在堆内存中的存储布局可以分为三部分：对象头（object header），实例数据（Instance Data）和对齐填充（Padding）。
+     * 1）Mark Word：用于对象自身的运行时数据存储，如HashCode，GC分代年龄，锁状态标志，线程持有的锁，偏向线程ID和偏向时间戳等；
+     * 2）Klass Pointer：对象指向它类元数据的指针，JVM通过这个指针长度来确定对象是哪个类的实例。
+     * 3）数组长度（只有数组对象才有）：记录数组对象的长度。
+     *
+     * 我们知道 8 int（整数） 就等于32 bytes（字节），所以减去对象头大小的32 bytes来源于：
+     *
+     * 32 bytes = 8 bytes（Mark Word的最大占用） + 8 bytes（Klass Pointer的最大占用） +
+     *              4 bytes（数组长度）+ 8 bytes（引用指针的最大占用：数组中存放的是对象的引用） +
+     *              4 bytes（padding：为了方便寻址，JVM要求对象大小要求是8的倍数，不够就填充）
      */
     private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
 
