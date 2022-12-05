@@ -2150,10 +2150,13 @@ public class TreeMap<K,V>
             Entry<K,V> p = t.right;
             while (p.left != null)
                 p = p.left;
+            // 获取比右子树最小的节点
             return p;
         } else {
+            // 右子树为空
             Entry<K,V> p = t.parent;
             Entry<K,V> ch = t;
+            // 获取最顶节点
             while (p != null && ch == p.right) {
                 ch = p;
                 p = p.parent;
@@ -2303,6 +2306,7 @@ public class TreeMap<K,V>
         // If strictly internal, copy successor's element to p and then make p
         // point to successor.
         if (p.left != null && p.right != null) {
+            // 获取替换节点 ，比右子树最小的节点
             Entry<K,V> s = successor(p);
             p.key = s.key;
             p.value = s.value;
