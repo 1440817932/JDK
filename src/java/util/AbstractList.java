@@ -340,7 +340,7 @@ public abstract class AbstractList<E> extends AbstractCollection<E> implements L
          * to remove.
          */
         /**
-         * 最近调用下一个或上一个返回的元素索引。如果此元素被要删除的调用删除，则重置为 -1。
+         * 最近一次调用next或previous返回的元素索引。如果此元素被调用删除，则重置为-1。
          */
         int lastRet = -1;
 
@@ -355,6 +355,7 @@ public abstract class AbstractList<E> extends AbstractCollection<E> implements L
             return cursor != size();
         }
 
+        // 先返回当前位置cursor的值，然后在将cursor赋值为下一个位置的索引。
         public E next() {
             checkForComodification();
             try {

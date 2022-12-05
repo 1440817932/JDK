@@ -109,7 +109,7 @@ public class Vector<E>
      * incremented when its size becomes greater than its capacity.  If
      * the capacity increment is less than or equal to zero, the capacity
      * of the vector is doubled each time it needs to grow.
-     *
+     *当向量的大小大于其容量时，向量容量自动增加的量。如果容量增量小于或等于零，则向量的容量在每次需要增加一倍
      * @serial
      */
     protected int capacityIncrement;

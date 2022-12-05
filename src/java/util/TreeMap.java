@@ -286,6 +286,7 @@ public class TreeMap<K,V>
     /**
      * @throws NoSuchElementException {@inheritDoc}
      */
+    // 不为空直接遍历拿左子树
     public K firstKey() {
         return key(getFirstEntry());
     }
@@ -293,6 +294,7 @@ public class TreeMap<K,V>
     /**
      * @throws NoSuchElementException {@inheritDoc}
      */
+    // 不为空直接遍历拿右子树
     public K lastKey() {
         return key(getLastEntry());
     }
