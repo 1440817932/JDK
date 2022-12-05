@@ -2221,18 +2221,26 @@ public class TreeMap<K,V>
     /** From CLR */
     private void rotateLeft(Entry<K,V> p) {
         if (p != null) {
+            // 左旋：r（替换节点） ：为旋转节点的右儿子
             Entry<K,V> r = p.right;
+            // 左旋：右节点的左子树作为旋转节点的右子树
             p.right = r.left;
             if (r.left != null)
+                // 刚刚认了儿子，儿子还没认爹
                 r.left.parent = p;
+            // 左旋：右儿子代替旋转节点，儿子需要认爹
             r.parent = p.parent;
+            // 爹认儿子
             if (p.parent == null)
+                // 如果旋转节点是根节点，新节点直接作为跟节点
                 root = r;
-            else if (p.parent.left == p)
+            else if (p.parent.left == p) // 旋转节点是左子树，爹认新节点为左儿子
                 p.parent.left = r;
-            else
+            else// 旋转节点是右子树，爹认新节点为右儿子
                 p.parent.right = r;
+            // 替换节点认旋转节点为儿子
             r.left = p;
+            // 旋转节点认爹
             p.parent = r;
         }
     }
@@ -2316,6 +2324,7 @@ public class TreeMap<K,V>
         // Start fixup at replacement node, if it exists.
         Entry<K,V> replacement = (p.left != null ? p.left : p.right);
 
+        // 至少存在一个子节点
         if (replacement != null) {
             // Link replacement to parent
             replacement.parent = p.parent;
@@ -2330,20 +2339,26 @@ public class TreeMap<K,V>
             p.left = p.right = p.parent = null;
 
             // Fix replacement
-            if (p.color == BLACK)
+            if (p.color == BLACK) // 删除节点是黑色
+                // 替换节点作为平衡调整的初始位置
                 fixAfterDeletion(replacement);
         } else if (p.parent == null) { // return if we are the only node.
+            // 删除节点为根节点直接置空返回
             root = null;
         } else { //  No children. Use self as phantom replacement and unlink.
+            // 没有子树节点
             if (p.color == BLACK)
+                // 当前节点为黑色，平衡调整
                 fixAfterDeletion(p);
 
+            // 删除节点的父节点不为空
+            // 需要将父节点去掉与删除节点的关联
             if (p.parent != null) {
                 if (p == p.parent.left)
                     p.parent.left = null;
                 else if (p == p.parent.right)
                     p.parent.right = null;
-                p.parent = null;
+                p.parent = null; // 需要将删除节点去掉与父节点的关联
             }
         }
     }
@@ -2351,31 +2366,48 @@ public class TreeMap<K,V>
     /** From CLR */
     private void fixAfterDeletion(Entry<K,V> x) {
         while (x != root && colorOf(x) == BLACK) {
+            // 当前节点是左子树
             if (x == leftOf(parentOf(x))) {
+                // sib: 兄弟节点
                 Entry<K,V> sib = rightOf(parentOf(x));
-
+                // 兄弟节点 是为红色
                 if (colorOf(sib) == RED) {
+                    // 兄变红 父变黑
                     setColor(sib, BLACK);
                     setColor(parentOf(x), RED);
+                    // 父左旋
                     rotateLeft(parentOf(x));
+                    // 将当前将当前节点的父节点赋值
                     sib = rightOf(parentOf(x));
                 }
 
+                //sib：如果开始节点的兄弟节点是红色，则是替换位置的节点 否则 是兄弟节点
                 if (colorOf(leftOf(sib))  == BLACK &&
-                    colorOf(rightOf(sib)) == BLACK) {
+                    colorOf(rightOf(sib)) == BLACK) { // 左右子树没有红色
+                    // 变色
                     setColor(sib, RED);
+                    // 将当前将当前节点的父节点赋值
+                    // 爹变为当前节点 接着循环
                     x = parentOf(x);
                 } else {
-                    if (colorOf(rightOf(sib)) == BLACK) {
+                    // 有红色 ：无论是一个还是两个
+                    if (colorOf(rightOf(sib)) == BLACK) { // 同边儿子节点（当前节点为是右节点，同边儿子节点为右儿子）不为红色
+                        // 变色： 左黑 父红
                         setColor(leftOf(sib), BLACK);
                         setColor(sib, RED);
+                        // 左旋
                         rotateRight(sib);
+                        // 兄弟节点赋值给sib
                         sib = rightOf(parentOf(x));
                     }
+                    // 父节点颜色给兄弟节点
                     setColor(sib, colorOf(parentOf(x)));
+                    // 父节点 兄弟同边节点点变黑
                     setColor(parentOf(x), BLACK);
                     setColor(rightOf(sib), BLACK);
+                    // 父节点左旋
                     rotateLeft(parentOf(x));
+                    // 根节点作为当前节点继续平衡调整
                     x = root;
                 }
             } else { // symmetric
@@ -2408,6 +2440,7 @@ public class TreeMap<K,V>
             }
         }
 
+        // 当前节点变黑
         setColor(x, BLACK);
     }
 
