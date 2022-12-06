@@ -537,6 +537,7 @@ public class TreeMap<K,V>
     public V put(K key, V value) {
         Entry<K,V> t = root;
         if (t == null) {
+            // 没有自定义比较器则直接用 key实现的比较方法，compareTo比较(没有实现接口或没有比较器会报错)
             compare(key, key); // type (and possibly null) check
 
             root = new Entry<>(key, value, null);
@@ -547,6 +548,7 @@ public class TreeMap<K,V>
         int cmp;
         Entry<K,V> parent;
         // split comparator and comparable paths
+        // 找到父节点
         Comparator<? super K> cpr = comparator;
         if (cpr != null) {
             do {
@@ -581,6 +583,7 @@ public class TreeMap<K,V>
             parent.left = e;
         else
             parent.right = e;
+        // 插入后红黑树平衡调整
         fixAfterInsertion(e);
         size++;
         modCount++;
@@ -2266,37 +2269,52 @@ public class TreeMap<K,V>
     private void fixAfterInsertion(Entry<K,V> x) {
         x.color = RED;
 
+        // 插入节点不是根节点且父节点为红
         while (x != null && x != root && x.parent.color == RED) {
+            // 父节点为左孩子
             if (parentOf(x) == leftOf(parentOf(parentOf(x)))) {
+                // y： 父节点的兄弟节点
                 Entry<K,V> y = rightOf(parentOf(parentOf(x)));
-                if (colorOf(y) == RED) {
+                if (colorOf(y) == RED) { // 父兄为红
+                    // 父黑，父兄黑，爷红
                     setColor(parentOf(x), BLACK);
                     setColor(y, BLACK);
                     setColor(parentOf(parentOf(x)), RED);
+                    // 爷节点作为当前节点继续循环
                     x = parentOf(parentOf(x));
-                } else {
-                    if (x == rightOf(parentOf(x))) {
+                } else {// 父兄不为红
+                    if (x == rightOf(parentOf(x))) {// 当前节点是父不同边子节点
+                        // 父节点作为当前节点左旋
                         x = parentOf(x);
                         rotateLeft(x);
                     }
+                    // 父红，爷黑
                     setColor(parentOf(x), BLACK);
                     setColor(parentOf(parentOf(x)), RED);
+                    // 爷爷右旋
                     rotateRight(parentOf(parentOf(x)));
                 }
-            } else {
+            } else { // 父节点为右孩子
+                // y：父兄
                 Entry<K,V> y = leftOf(parentOf(parentOf(x)));
-                if (colorOf(y) == RED) {
+                if (colorOf(y) == RED) {// 父兄为红
+                    // 父黑，父兄黑，爷红
                     setColor(parentOf(x), BLACK);
                     setColor(y, BLACK);
                     setColor(parentOf(parentOf(x)), RED);
+                    // 爷作为当前节点继续循环
                     x = parentOf(parentOf(x));
-                } else {
+                } else {// 当前节点是父不同边子节点
                     if (x == leftOf(parentOf(x))) {
+                        // 父节点作为当前节点
                         x = parentOf(x);
+                        // 右旋，使原节点与父同边
                         rotateRight(x);
                     }
+                    // 父黑，爷红
                     setColor(parentOf(x), BLACK);
                     setColor(parentOf(parentOf(x)), RED);
+                    // 爷左旋
                     rotateLeft(parentOf(parentOf(x)));
                 }
             }
@@ -2372,19 +2390,19 @@ public class TreeMap<K,V>
                 Entry<K,V> sib = rightOf(parentOf(x));
                 // 兄弟节点 是为红色
                 if (colorOf(sib) == RED) {
-                    // 兄变红 父变黑
+                    // 兄变黑 父变红
                     setColor(sib, BLACK);
                     setColor(parentOf(x), RED);
                     // 父左旋
                     rotateLeft(parentOf(x));
-                    // 将当前将当前节点的父节点赋值
+                    // 旋转后的兄弟节点（原本兄弟的左孩子）
                     sib = rightOf(parentOf(x));
                 }
 
                 //sib：如果开始节点的兄弟节点是红色，则是替换位置的节点 否则 是兄弟节点
                 if (colorOf(leftOf(sib))  == BLACK &&
-                    colorOf(rightOf(sib)) == BLACK) { // 左右子树没有红色
-                    // 变色
+                    colorOf(rightOf(sib)) == BLACK) { // 兄弟左右子树没有红色
+                    // 兄弟变红
                     setColor(sib, RED);
                     // 将当前将当前节点的父节点赋值
                     // 爹变为当前节点 接着循环
@@ -2392,10 +2410,10 @@ public class TreeMap<K,V>
                 } else {
                     // 有红色 ：无论是一个还是两个
                     if (colorOf(rightOf(sib)) == BLACK) { // 同边儿子节点（当前节点为是右节点，同边儿子节点为右儿子）不为红色
-                        // 变色： 左黑 父红
+                        // 变色： 兄左黑 父红
                         setColor(leftOf(sib), BLACK);
                         setColor(sib, RED);
-                        // 左旋
+                        // 兄弟右旋
                         rotateRight(sib);
                         // 兄弟节点赋值给sib
                         sib = rightOf(parentOf(x));
