@@ -1866,10 +1866,12 @@ public final class String
          * Check arguments; return immediately where possible. For
          * consistency, don't check for null str.
          */
+        // 找到最后一个比较的位置 如：源是长度为3的数组，查找是长度为2的数组，比较位置有：0，1。最后一个比较位置为：1
         int rightIndex = sourceCount - targetCount;
         if (fromIndex < 0) {
             return -1;
         }
+        // 如果传进来比较的索引比最后比较位置还大，赋值最后比较位置给查找索引
         if (fromIndex > rightIndex) {
             fromIndex = rightIndex;
         }
@@ -1878,21 +1880,29 @@ public final class String
             return fromIndex;
         }
 
+        // 找到比较数组最后一个位置的char
         int strLastIndex = targetOffset + targetCount - 1;
         char strLastChar = target[strLastIndex];
         int min = sourceOffset + targetCount - 1;
+        // 找到目标串在源串比较的第一个位置，目标串最后一个char 所在索引
+        // 目标串的最后一个字符在查找串的位置
         int i = min + fromIndex;
 
     startSearchForLastChar:
         while (true) {
+            // 找到目标串最后一个char相等的索引位置
             while (i >= min && source[i] != strLastChar) {
                 i--;
             }
+            // 如果找不到，源数组就不存在目标数组，否则接着循环
             if (i < min) {
                 return -1;
             }
+            // 找到目标串的最后一个字符在查找串的位置 - 1
             int j = i - 1;
+            // 找到源串比较的开始位置
             int start = j - (targetCount - 1);
+            // 到比较数组最后一个位置的char 前一个索引
             int k = strLastIndex - 1;
 
             while (j > start) {

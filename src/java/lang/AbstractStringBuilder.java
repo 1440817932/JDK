@@ -418,7 +418,9 @@ abstract class AbstractStringBuilder implements Appendable, CharSequence {
         if (str == null)
             return appendNull();
         int len = str.length();
+        // 增加前先扩容
         ensureCapacityInternal(count + len);
+        // 把字符串当前值,加到value后面
         str.getChars(0, len, value, count);
         count += len;
         return this;
@@ -1037,6 +1039,9 @@ abstract class AbstractStringBuilder implements Appendable, CharSequence {
      * @return     a reference to this object.
      * @throws     StringIndexOutOfBoundsException  if the offset is invalid.
      */
+    // 查看容量是否需要扩容
+    // 插进来位置数据最后索引位置开始，先复制到当前数组（空位置放插入数据）
+    // 然后再复制插入数据到列表
     public AbstractStringBuilder insert(int offset, char[] str) {
         if ((offset < 0) || (offset > length()))
             throw new StringIndexOutOfBoundsException(offset);
@@ -1381,6 +1386,16 @@ abstract class AbstractStringBuilder implements Appendable, CharSequence {
      * a valid surrogate pair.
      *
      * @return  a reference to this object.
+     */
+    /*
+    将此字符序列替换为序列的相反顺序。
+    如果序列中包含任何代理项对，则这些代理项对将被视为反向操作的单个字符。
+    因此，高-低代理序列的顺序永远不会颠倒。
+     */
+    /*
+    一个完整的 Unicode 字符叫代码点CodePoint，而一个 Java char 叫 代码单元 code unit。
+    String 对象以UTF-16保存 Unicode 字符，需要用2个字符表示一个超大字符集的汉字，这这种表示方式称之为 Surrogate，
+    第一个字符叫 Surrogate High，第二个就是 Surrogate Low。
      */
     public AbstractStringBuilder reverse() {
         boolean hasSurrogates = false;
