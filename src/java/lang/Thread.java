@@ -693,6 +693,22 @@ class Thread implements Runnable {
      * @see        #run()
      * @see        #stop()
      */
+    /*
+    在Java当中，线程通常都有五种状态，创建、就绪、运行、阻塞和死亡。
+
+        第一是创建状态。在生成线程对象，并没有调用该对象的start方法，这是线程处于创建状态。
+
+        第二是就绪状态。当调用了线程对象的start方法之后，该线程就进入了就绪状态，但是此时线程调度程序还没有把该线程设置为当前线程，此时处于就绪状态。在线程运行之后，从等待或者睡眠中回来之后，也会处于就绪状态。
+
+        第三是运行状态。线程调度程序将处于就绪状态的线程设置为当前线程，此时线程就进入了运行状态，开始运行run函数当中的代码。
+
+        第四是阻塞状态。线程正在运行的时候，被暂停，通常是为了等待某个时间的发生(比如说某项资源就绪)之后再继续运行。sleep,suspend，wait等方法都可以导致线程阻塞。
+
+        第五是死亡状态。如果一个线程的run方法执行结束或者调用stop方法后，该线程就会死亡。对于已经死亡的线程，无法再使用start方法令其进入就绪。
+     */
+
+
+    //start方法的作用就是将线程由NEW状态，变为RUNABLE状态。当线程创建成功时，线程处于NEW（新建）状态，如果你不调用start( )方法，那么线程永远处于NEW状态。调用start( )后，才会变为RUNABLE状态，线程才可以运行。
     public synchronized void start() {
         /**
          * This method is not invoked for the main method thread or "system"
@@ -908,6 +924,7 @@ class Thread implements Runnable {
      * @revised 6.0
      * @spec JSR-51
      */
+    //其作用是中断此线程（此线程不一定是当前线程，而是指调用该方法的Thread实例所代表的线程），但实际上只是给线程设置一个中断标志，线程仍会继续运行。
     public void interrupt() {
         if (this != Thread.currentThread())
             checkAccess();
@@ -940,6 +957,9 @@ class Thread implements Runnable {
      * @see #isInterrupted()
      * @revised 6.0
      */
+    // 作用是测试当前线程是否被中断（检查中断标志），返回一个boolean并清除中断状态，第二次再调用时中断状态已经被清除，将返回一个false。
+    // interrupt（）是给线程设置中断标志；interrupted（）是检测中断并清除中断状态；isInterrupted（）只检测中断。
+    // 还有重要的一点就是interrupted（）作用于当前线程，interrupt（）和isInterrupted（）作用于此线程，即代码中调用此方法的实例所代表的线程
     public static boolean interrupted() {
         return currentThread().isInterrupted(true);
     }
