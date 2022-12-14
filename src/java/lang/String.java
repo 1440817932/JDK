@@ -1883,9 +1883,13 @@ public final class String
         // 找到比较数组最后一个位置的char
         int strLastIndex = targetOffset + targetCount - 1;
         char strLastChar = target[strLastIndex];
+        // min： 比较串最后一个在源串第一个位置
         int min = sourceOffset + targetCount - 1;
         // 找到目标串在源串比较的第一个位置，目标串最后一个char 所在索引
         // 目标串的最后一个字符在查找串的位置
+        // fromIndex： 从第几个开始比较
+        // i:可以比较次数
+
         int i = min + fromIndex;
 
     startSearchForLastChar:
@@ -1894,7 +1898,7 @@ public final class String
             while (i >= min && source[i] != strLastChar) {
                 i--;
             }
-            // 如果找不到，源数组就不存在目标数组，否则接着循环
+            // 如果找不到，源数组就不存在目标数组
             if (i < min) {
                 return -1;
             }
@@ -2039,7 +2043,9 @@ public final class String
             return this;
         }
         int len = value.length;
+        // 把当前值赋值到新数组
         char buf[] = Arrays.copyOf(value, len + otherLen);
+        // 将新值赋值赋值到新数组后面
         str.getChars(buf, len);
         return new String(buf, true);
     }
@@ -2079,6 +2085,7 @@ public final class String
             int i = -1;
             char[] val = value; /* avoid getfield opcode */
 
+            // 找到匹配的字符
             while (++i < len) {
                 if (val[i] == oldChar) {
                     break;
@@ -2086,9 +2093,11 @@ public final class String
             }
             if (i < len) {
                 char buf[] = new char[len];
+                // 在新数组赋值前面不相等的值
                 for (int j = 0; j < i; j++) {
                     buf[j] = val[j];
                 }
+                // 将替换位置的值变换，再循环替换相同值
                 while (i < len) {
                     char c = val[i];
                     buf[i] = (c == oldChar) ? newChar : c;
