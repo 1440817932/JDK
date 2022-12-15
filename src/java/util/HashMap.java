@@ -421,6 +421,20 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * Returns a power of two size for the given target capacity.
      */
     // 大于等于该容量的最小的2的N次方计算
+    // 这段代码的目的是把n的二进制数中的0置为1
+    /*
+    假设传进来一个数的二进制是100001001；
+		n |= n >>> 1;
+		在这里处理之后是110001101，这一步可以这样理解，
+		如果你是1，那么把你的下一位变成1，那么是不是有1的地方会存在两个1，
+		这也就解释了为什么下一行要无符号右移2，依此类推1，2，4，8，16，下下次直接右移4.
+        n |= n >>> 2;
+        在这里处理之后是111101111
+        n |= n >>> 4;
+        在这里处理之后是111111111
+        n |= n >>> 8;
+        n |= n >>> 16;
+     */
     static final int tableSizeFor(int cap) {
         // 处理本身cap是2的N次方情况
         int n = cap - 1;
