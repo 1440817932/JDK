@@ -114,9 +114,12 @@ public class FutureTask<V> implements RunnableFuture<V> {
      */
     @SuppressWarnings("unchecked")
     private V report(int s) throws ExecutionException {
+        //outcome里保存的就是最终的计算结果
         Object x = outcome;
         if (s == NORMAL)
+            //正常完成，就返回outcome
             return (V)x;
+        //如果没有正常完成， 比如被用户取消了，或者有异常了，就抛出异常
         if (s >= CANCELLED)
             throw new CancellationException();
         throw new ExecutionException((Throwable)x);
@@ -187,6 +190,8 @@ public class FutureTask<V> implements RunnableFuture<V> {
      */
     public V get() throws InterruptedException, ExecutionException {
         int s = state;
+        //如果没有完成，就等待，回到用park()方法阻塞线程
+        //同时，所有等待线程会在FutureTask的waiters字段中排队等待
         if (s <= COMPLETING)
             s = awaitDone(false, 0L);
         return report(s);
@@ -253,6 +258,7 @@ public class FutureTask<V> implements RunnableFuture<V> {
     }
 
     public void run() {
+        //任务如果是新的，才会执行，已经完成任务不会再执行
         if (state != NEW ||
             !UNSAFE.compareAndSwapObject(this, runnerOffset,
                                          null, Thread.currentThread()))
@@ -263,6 +269,7 @@ public class FutureTask<V> implements RunnableFuture<V> {
                 V result;
                 boolean ran;
                 try {
+                    //调用Callable的call()方法，也就是真正干活的地方
                     result = c.call();
                     ran = true;
                 } catch (Throwable ex) {
@@ -270,6 +277,9 @@ public class FutureTask<V> implements RunnableFuture<V> {
                     ran = false;
                     setException(ex);
                 }
+                //这里的set()方法就是把result放到outcome里保存
+                // 同时设置任务状态为NORMAL，表示完成了
+                // 最后，还会通知等待在这个Future上所有的线程
                 if (ran)
                     set(result);
             }

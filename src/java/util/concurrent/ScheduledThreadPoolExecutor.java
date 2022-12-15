@@ -118,6 +118,13 @@ import java.util.*;
  * @since 1.5
  * @author Doug Lea
  */
+/*
+Executor线程池相关顶级接口，它将任务的提交与任务的执行分离开来
+ExecutorService继承并扩展了Executor接口，提供了Runnable、FutureTask等主要线程实现接口扩展
+ThreadPoolExecutor是线程池的核心实现类，用来执行被提交的任务
+ScheduledExecutorService继承ExecutorService接口，并定义延迟或定期执行的方法
+ScheduledThreadPoolExecutor继承ThreadPoolExecutor并实现了ScheduledExecutorService接口，是延时执行类任务的主要实现
+ */
 public class ScheduledThreadPoolExecutor
         extends ThreadPoolExecutor
         implements ScheduledExecutorService {
