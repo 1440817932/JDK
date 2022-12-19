@@ -377,6 +377,16 @@ public abstract class AbstractQueuedSynchronizer
      * expert group, for helpful ideas, discussions, and critiques
      * on the design of this class.
      */
+    /*
+    总结：
+    1 如果只有一个线程进来不会初始化CHL同步得带队列
+    2 第二个线程来加锁失败(竞争)时，会帮头节点初始化一个节点，并将自己的节点挂在头节点后面
+    3 每个等待的节点会将上一个节点的状态改为SIGNAL(-1)，用来标志改节点后面的节点才可以被唤醒
+    4 在释放锁的时候如果头节点的状态为不为0，会先将其设置为0。然后唤醒下一个节点
+    5 节点入队和唤醒的时候都会跳过ws>0 即CANCELLED(取消)的节点
+    6 头节点一定表示当前获取锁的线程节点。
+
+     */
     static final class Node {
         /** Marker to indicate a node is waiting in shared mode */
         static final Node SHARED = new Node();
@@ -384,15 +394,22 @@ public abstract class AbstractQueuedSynchronizer
         static final Node EXCLUSIVE = null;
 
         /** waitStatus value to indicate thread has cancelled */
+        // CANCELLED：由于超时或中断，此节点被取消。节点一旦被取消了就不会再改变状态。特别是，取消节点的线程不会再阻塞。
         static final int CANCELLED =  1;
         /** waitStatus value to indicate successor's thread needs unparking */
+        // SIGNAL:此节点后面的节点已（或即将）被阻止（通过park），因此当前节点在释放或取消时必须断开后面的节点
+        // 为了避免竞争，acquire方法时前面的节点必须是SIGNAL状态，然后重试原子acquire，然后在失败时阻塞。
         static final int SIGNAL    = -1;
         /** waitStatus value to indicate thread is waiting on condition */
+        // 此节点当前在条件队列中。标记为CONDITION的节点会被移动到一个特殊的条件等待队列（此时状态将设置为0），直到条件时才会被重新移动到同步等待队列 。（此处使用此值与字段的其他用途无关，但简化了机制。）
+
         static final int CONDITION = -2;
         /**
          * waitStatus value to indicate the next acquireShared should
          * unconditionally propagate
          */
+        //传播：应将releaseShared传播到其他节点。这是在doReleaseShared中设置的（仅适用于头部节点），以确保传播继续，即使此后有其他操作介入。
+
         static final int PROPAGATE = -3;
 
         /**
@@ -572,6 +589,9 @@ public abstract class AbstractQueuedSynchronizer
      * The number of nanoseconds for which it is faster to spin
      * rather than to use timed park. A rough estimate suffices
      * to improve responsiveness with very short timeouts.
+     */
+    /**
+     * 旋转比使用定时停车更快的纳秒数。粗略的估计足以在极短的超时时间内提高响应能力。
      */
     static final long spinForTimeoutThreshold = 1000L;
 
