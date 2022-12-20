@@ -42,10 +42,14 @@ package java.io;
  * @see     java.io.PushbackInputStream
  * @since   JDK1.0
  */
+/*
+InputStream是一个抽象类，即表示所有字节输入流实现类的基类。
+ */
 public abstract class InputStream implements Closeable {
 
     // MAX_SKIP_BUFFER_SIZE is used to determine the maximum buffer size to
     // use when skipping.
+    //默认可以跳过的最大范围
     private static final int MAX_SKIP_BUFFER_SIZE = 2048;
 
     /**
@@ -62,6 +66,8 @@ public abstract class InputStream implements Closeable {
      *             stream is reached.
      * @exception  IOException  if an I/O error occurs.
      */
+
+    //读取字节流（子类具体实现）
     public abstract int read() throws IOException;
 
     /**
@@ -97,6 +103,7 @@ public abstract class InputStream implements Closeable {
      * @exception  NullPointerException  if <code>b</code> is <code>null</code>.
      * @see        java.io.InputStream#read(byte[], int, int)
      */
+    // 从输入流中读取数据的一定数量字节，并存储在缓存数组b
     public int read(byte b[]) throws IOException {
         return read(b, 0, b.length);
     }
@@ -158,11 +165,12 @@ public abstract class InputStream implements Closeable {
      * <code>b.length - off</code>
      * @see        java.io.InputStream#read()
      */
+    // 从输入流中读取数据最多len个字节，并存储在缓存数组b
     public int read(byte b[], int off, int len) throws IOException {
         if (b == null) {
             throw new NullPointerException();
         } else if (off < 0 || len < 0 || len > b.length - off) {
-            throw new IndexOutOfBoundsException();
+            throw new IndexOutOfBoundsException();//如果读取的大小超过了具体字节数组的容量大小，则抛出数组越界
         } else if (len == 0) {
             return 0;
         }
@@ -209,6 +217,7 @@ public abstract class InputStream implements Closeable {
      * @exception  IOException  if the stream does not support seek,
      *                          or if some other I/O error occurs.
      */
+    // 跳过输入流中数据的n个字节
     public long skip(long n) throws IOException {
 
         long remaining = n;
@@ -257,6 +266,7 @@ public abstract class InputStream implements Closeable {
      *             it reaches the end of the input stream.
      * @exception  IOException if an I/O error occurs.
      */
+    // 返回下一个方法调用能不受阻塞地从此读取（或者跳过）的估计字节数
     public int available() throws IOException {
         return 0;
     }
@@ -270,6 +280,8 @@ public abstract class InputStream implements Closeable {
      *
      * @exception  IOException  if an I/O error occurs.
      */
+
+    // 关闭此输入流，并释放与其关联的所有资源
     public void close() throws IOException {}
 
     /**
@@ -298,6 +310,8 @@ public abstract class InputStream implements Closeable {
      *                      the mark position becomes invalid.
      * @see     java.io.InputStream#reset()
      */
+
+    // 在此输出流中标记当前位置
     public synchronized void mark(int readlimit) {}
 
     /**
@@ -344,6 +358,7 @@ public abstract class InputStream implements Closeable {
      * @see     java.io.InputStream#mark(int)
      * @see     java.io.IOException
      */
+    // 重置
     public synchronized void reset() throws IOException {
         throw new IOException("mark/reset not supported");
     }
@@ -360,6 +375,7 @@ public abstract class InputStream implements Closeable {
      * @see     java.io.InputStream#mark(int)
      * @see     java.io.InputStream#reset()
      */
+    // 是否支持标志
     public boolean markSupported() {
         return false;
     }

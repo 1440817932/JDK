@@ -153,7 +153,7 @@ public class File
     /**
      * The FileSystem object representing the platform's local file system.
      */
-    private static final FileSystem fs = DefaultFileSystem.getFileSystem();
+    private static final FileSystem fs = DefaultFileSystem.getFileSystem();// 文件系统
 
     /**
      * This abstract pathname's normalized pathname string. A normalized
@@ -162,7 +162,7 @@ public class File
      *
      * @serial
      */
-    private final String path;
+    private final String path;//文件路径
 
     /**
      * Enum type that indicates the status of a file path.
@@ -272,7 +272,7 @@ public class File
      * @throws  NullPointerException
      *          If the <code>pathname</code> argument is <code>null</code>
      */
-    public File(String pathname) {
+    public File(String pathname) {//通过将给定路径名字符串转换为抽象路径名来创建一个新 File 实例。
         if (pathname == null) {
             throw new NullPointerException();
         }
@@ -312,7 +312,7 @@ public class File
      * @throws  NullPointerException
      *          If <code>child</code> is <code>null</code>
      */
-    public File(String parent, String child) {
+    public File(String parent, String child) {// 根据 parent 路径名字符串和 child 路径名字符串创建一个新 File 实例。
         if (child == null) {
             throw new NullPointerException();
         }
@@ -355,7 +355,7 @@ public class File
      * @throws  NullPointerException
      *          If <code>child</code> is <code>null</code>
      */
-    public File(File parent, String child) {
+    public File(File parent, String child) {// 根据 parent 抽象路径名和 child 路径名字符串创建一个新 File 实例
         if (child == null) {
             throw new NullPointerException();
         }
@@ -411,6 +411,7 @@ public class File
      */
     public File(URI uri) {
 
+        // URI 转换为一个抽象路径名来创建一个新的 File 实例。
         // Check our many preconditions
         if (!uri.isAbsolute())
             throw new IllegalArgumentException("URI is not absolute");

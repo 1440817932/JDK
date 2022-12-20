@@ -57,12 +57,14 @@ public abstract class Reader implements Readable, Closeable {
      * the object in this field rather than <tt>this</tt> or a synchronized
      * method.
      */
+    //用于同步操作此流的线程
     protected Object lock;
 
     /**
      * Creates a new character-stream reader whose critical sections will
      * synchronize on the reader itself.
      */
+    // 把自己的实例作为锁对象
     protected Reader() {
         this.lock = this;
     }
@@ -73,6 +75,7 @@ public abstract class Reader implements Readable, Closeable {
      *
      * @param lock  The Object to synchronize on.
      */
+    // 把输入的Object作为锁对象
     protected Reader(Object lock) {
         if (lock == null) {
             throw new NullPointerException();
@@ -94,10 +97,22 @@ public abstract class Reader implements Readable, Closeable {
      * @throws java.nio.ReadOnlyBufferException if target is a read only buffer
      * @since 1.5
      */
+    /**
+     * 此方法可以把字符输入流的数据保存到缓冲区中。
+     * 返回实际存进缓冲区的数量，如果为-1表示已经到底了。
+     * 此方法可能会抛出以下三个异常：
+     * 空指针异常，如果target是null。
+     * IO异常
+     * 缓冲区只读异常，如果target是只读的，无法写。
+     * @since 1.5
+     */
     public int read(java.nio.CharBuffer target) throws IOException {
+        // 获得缓冲区还可以缓冲字符的长度
         int len = target.remaining();
         char[] cbuf = new char[len];
+        // n为实际读取字符的数量
         int n = read(cbuf, 0, len);
+        //如果有读取，就把读取到的字符存进字符缓冲区中。
         if (n > 0)
             target.put(cbuf, 0, n);
         return n;
@@ -116,6 +131,7 @@ public abstract class Reader implements Readable, Closeable {
      *
      * @exception  IOException  If an I/O error occurs
      */
+    //读取一个字符，返回字符强转int后的值。
     public int read() throws IOException {
         char cb[] = new char[1];
         if (read(cb, 0, 1) == -1)
@@ -154,12 +170,15 @@ public abstract class Reader implements Readable, Closeable {
      *
      * @exception  IOException  If an I/O error occurs
      */
+    // 由子类实现的方法，所有的读取都需要经过这个方法。
     abstract public int read(char cbuf[], int off, int len) throws IOException;
 
     /** Maximum skip-buffer size */
+    // 一次最大可跳过的字符数
     private static final int maxSkipBufferSize = 8192;
 
     /** Skip buffer, null until allocated */
+    //用于储存已经跳过的字符
     private char skipBuffer[] = null;
 
     /**
@@ -173,20 +192,30 @@ public abstract class Reader implements Readable, Closeable {
      * @exception  IllegalArgumentException  If <code>n</code> is negative.
      * @exception  IOException  If an I/O error occurs
      */
+    /**
+     * 跳过指定的字符数。这个方法将会阻塞直到字符是有效的、发生IO异常、或者输入流已经到* * 底了。
+     * @param n 需要跳过的字符数
+     * @return 返回实际跳过的字符数
+     */
     public long skip(long n) throws IOException {
-        if (n < 0L)
+        if (n < 0L)// 跳过的字符数不能小于0，不然会出异常
             throw new IllegalArgumentException("skip value is negative");
-        int nn = (int) Math.min(n, maxSkipBufferSize);
-        synchronized (lock) {
+        int nn = (int) Math.min(n, maxSkipBufferSize);//nn为一次跳过的字符数，不能大于maxSkipBufferSize。
+        synchronized (lock) {//做同步锁，防止多线程访问的时候出现奇怪的逻辑现象。
+            //如果skipBuffer为空，或者长度小于nn
             if ((skipBuffer == null) || (skipBuffer.length < nn))
+                //就会重新创建一个nn长度的字符数组
                 skipBuffer = new char[nn];
-            long r = n;
+            long r = n;//用于储存还需要跳过的字符数
             while (r > 0) {
-                int nc = read(skipBuffer, 0, (int)Math.min(r, nn));
+                int nc = read(skipBuffer, 0, (int)Math.min(r, nn));//注意这里的(int)Math.min(r, nn)，和前面的(int) Math.min(n, maxSkipBufferSize)搭配。
+                //如果输入流已经到底了，直接跳出循环。
                 if (nc == -1)
                     break;
+                // 减去已经跳过的字符数
                 r -= nc;
             }
+            // 需要跳过的字符数-还需跳过的字符数=实际跳过的字符数。
             return n - r;
         }
     }
@@ -199,6 +228,11 @@ public abstract class Reader implements Readable, Closeable {
      * next read will block.
      *
      * @exception  IOException  If an I/O error occurs
+     */
+    /**
+     * 判断这个字节流是否能被读。
+     * 如果返回True，则保证下次调用read()方法的时候不阻塞输入，否则返回False。
+     * 记住，返回False不保证下次调用read()方法的时候会被阻塞。
      */
     public boolean ready() throws IOException {
         return false;
@@ -228,6 +262,7 @@ public abstract class Reader implements Readable, Closeable {
      * @exception  IOException  If the stream does not support mark(),
      *                          or if some other I/O error occurs
      */
+    // 标记字符位置
     public void mark(int readAheadLimit) throws IOException {
         throw new IOException("mark() not supported");
     }
@@ -245,6 +280,7 @@ public abstract class Reader implements Readable, Closeable {
      *                          or if the stream does not support reset(),
      *                          or if some other I/O error occurs
      */
+    // 重新回到标记的字符。
     public void reset() throws IOException {
         throw new IOException("reset() not supported");
     }
@@ -256,6 +292,10 @@ public abstract class Reader implements Readable, Closeable {
      * Closing a previously closed stream has no effect.
      *
      * @exception  IOException  If an I/O error occurs
+     */
+    /**
+     *关闭输入流与相关的资源，这会导致read()\ready()\mark()
+     *\reset()\skip()抛出IO异常，关闭已经关闭的资源是没有任何效果的。
      */
      abstract public void close() throws IOException;
 

@@ -47,6 +47,47 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  * @author  Arthur van Hoff
  * @since   JDK1.0
  */
+/*
+根据JAVA官方文档的描述，mark(int readlimit)方法表示，标记当前位置，并保证在mark以后最多可以读取readlimit字节数据，mark标记仍有效。如果在mark后读取超过readlimit字节数据，mark标记就会失效，调用reset()方法会有异常。
+
+但实际的运行情况却和JAVA文档中的描述并不完全相符。 有时候在BufferedInputStream类中调用mark(int readlimit)方法后，即使读取超过readlimit字节的数据，mark标记仍有效，仍然能正确调用reset方法重置。
+
+事实上，mark在JAVA中的实现是和缓冲区相关的。只要缓冲区够大，mark后读取的数据没有超出缓冲区的大小，mark标记就不会失效。如果不够大，mark后又读取了大量的数据，导致缓冲区更新，原来标记的位置自然找不到了。
+
+因此，mark后读取多少字节才失效，并不完全由readlimit参数确定，也和BufferedInputStream类的缓冲区大小有关。 如果BufferedInputStream类的缓冲区大小大于readlimit，在mark以后只有读取超过缓冲区大小的数据，mark标记才会失效。看下面的例子。
+ */
+    /*
+    private static void test1() {
+        InputStream is = null;
+        BufferedInputStream buffer = null;
+        try {
+            is = new FileInputStream("/Users/liuxiao/test");//ABCDE
+            buffer = new BufferedInputStream(is);
+            //buffer = new BufferedInputStream(is,2);
+            System.out.println((char) buffer.read());//A
+            System.out.println((char) buffer.read());//B
+
+            buffer.mark(2);// 标记在C的位置，并且设置readlimit为2
+            System.out.println("mark() invoked");
+            System.out.println((char) buffer.read());//C
+            System.out.println((char) buffer.read());//D
+            System.out.println((char) buffer.read());//E   此时超出了mark设置的readlimit
+
+            if (buffer.markSupported()) {
+                buffer.reset();//这里有可能抛出异常
+                System.out.println("reset() invoked");
+                System.out.println((char) buffer.read());//C
+                System.out.println((char) buffer.read());//D
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if (is != null) try {buffer.close();is.close();} catch (IOException e) {e.printStackTrace();}
+        }
+    }
+    简言之，BufferedInputStream类调用mark(int readlimit)方法后读取多少字节标记才失效，是取readlimit和BufferedInputStream类的缓冲区大小两者中的最大值，
+    而并非完全由readlimit确定。这个在JAVA文档中是没有提到的。
+     */
 public
 class BufferedInputStream extends FilterInputStream {
 
@@ -104,6 +145,10 @@ class BufferedInputStream extends FilterInputStream {
      *
      * @see     java.io.BufferedInputStream#buf
      */
+    /*
+    pos用来表示在当前数组中，被消费到的位置，正常情况下，当read()方法被调用时，被取出的数据就是buf[pos]位置上的数据。
+    count则表示在缓存数组中可以被读取的数据大小，因此pos大小应该是介于0与count之间的，而count的大小应该是介于buf这个数组的长度上面的。
+     */
     protected int pos;
 
     /**
@@ -133,6 +178,7 @@ class BufferedInputStream extends FilterInputStream {
      * @see     java.io.BufferedInputStream#mark(int)
      * @see     java.io.BufferedInputStream#pos
      */
+    //markpos表示添加书签的位置而
     protected int markpos = -1;
 
     /**
@@ -147,6 +193,7 @@ class BufferedInputStream extends FilterInputStream {
      * @see     java.io.BufferedInputStream#mark(int)
      * @see     java.io.BufferedInputStream#reset()
      */
+    //marklimit则表示在读取过书签失效的最大位置。
     protected int marklimit;
 
     /**
@@ -165,6 +212,7 @@ class BufferedInputStream extends FilterInputStream {
      * close; if not return it;
      */
     private byte[] getBufIfOpen() throws IOException {
+        //每次都根据buf的引用来确认是否为空，保证在多线程情况下，能够及时确认到stream的关闭。
         byte[] buffer = buf;
         if (buffer == null)
             throw new IOException("Stream closed");
@@ -209,6 +257,25 @@ class BufferedInputStream extends FilterInputStream {
      * Assumes that it is being called by a synchronized method.
      * This method also assumes that all data has already been read in,
      * hence pos > count.
+     */
+    /*
+    当进入fill()方法后，如果不存在markpos，则表示当前的缓存数组完全可以被替换掉，因此pos被置为0，准备从0开始到数组结束全部更新。
+    此时，将会从给出的数据流中读取pos位置到缓存数组总长度大小的数据加入到缓存数组当中。而count，也就是可读取数据的最后一位，则为之前放入缓存数组的数据长度加上pos。
+
+    如果存在markpos的情况下，也就说当前缓存数组中的数据需要得到一定的保留。
+
+    如果pos已经大于等于缓存数组的大小，先确认markpos是否存在，如果大于0，则表明在markpos之前的数据可以被丢弃，那么直接就把markpos到pos的数据复制到缓存数组中，并
+    将pos赋值到原本数组长度减去markpos的长度，以确保接下来的数据可以被正确读取，并在接下来继续填充数据，markpos也自然被赋值为0。
+
+    如果markpos已经为0，则确认当前数组的长度是否已经大于marklimit，则表明已经没有必要继续保持markpos，则赋值为-1，并pos赋值为0，准备将缓存数组全部重新填充数据。
+
+    如果并没有大于marklimit，则需要扩充数组以确保书签的成功保留，但是如果当前的数组大小已经最大大小，则会抛出错误。
+
+    如果并没有超出最大大小，则当前缓存数组可以继续扩容。
+
+    扩容时，当前pos的大小应该等于当前数组的大小，则选择2倍pos和最大数组大小中的较小者作为扩容后的数组大小。之后将原本数组的数据复制到新生成的较大数组，
+    并通过cas确保线程安全的将新数组作为新的缓存数组复制给当前BufferedInputStream。完成之后，重新给新数组如同之前一样补充数据。
+
      */
     private void fill() throws IOException {
         byte[] buffer = getBufIfOpen();
@@ -260,8 +327,19 @@ class BufferedInputStream extends FilterInputStream {
      *                          or an I/O error occurs.
      * @see        java.io.FilterInputStream#in
      */
+    /*
+    根据前面对于pos和count的解释，当pos大于等于count的时候，证明buf数组中已经没有可以获取的数据，则需要fill()方法来扩充或者补充buf中的数据，
+    如果经过fill()方法后，pos仍旧大于等于count，则代表stream已经被读完，则返回-1，代表已经被读完。
+    如果经过fill()方法pos已经小于count或者本身pos已经小于count，那么直接返回buf[pos]上的数据，pos并自加准备取下一个位置上的数据。
+
+    但是取出来的数据需要和0xff相与，实则是为了保证表示读取完毕的Integer-1与正常读取的Byte-1进行区别。Integer类型的-1，则为32位1，
+    而Byte形式的-1则是1111 1111，返回时如果直接转为Integer会直接变为-1，导致无法确认究竟结束还是真的读取数据为Byte为-1，
+    所以讲Byte与0xff（也就是8位1）按位相与的结果再转化为Integer则是高24位为0，第八位为1，转化的结果则是255，避免和结束标志冲突。
+
+     */
     public synchronized int read() throws IOException {
         if (pos >= count) {
+            // fill()则是前面用来补充缓存数组中的数据的方法。
             fill();
             if (pos >= count)
                 return -1;

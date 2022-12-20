@@ -52,11 +52,13 @@ public abstract class Writer implements Appendable, Closeable, Flushable {
     /**
      * Temporary buffer used to hold writes of strings and single characters
      */
+    // 字符缓冲区
     private char[] writeBuffer;
 
     /**
      * Size of writeBuffer, must be >= 1
      */
+    // 缓冲区大小
     private static final int WRITE_BUFFER_SIZE = 1024;
 
     /**
@@ -104,11 +106,18 @@ public abstract class Writer implements Appendable, Closeable, Flushable {
      * @throws  IOException
      *          If an I/O error occurs
      */
+    /**
+     *
+     * 只写一个字符。
+     * 待写入的字符包含在给定整数值的16位低阶比特中;
+     * 16个高阶位被忽略。
+     */
     public void write(int c) throws IOException {
         synchronized (lock) {
             if (writeBuffer == null){
                 writeBuffer = new char[WRITE_BUFFER_SIZE];
             }
+            // 先写入writeBuffer，再把writeBuffer写入输出流
             writeBuffer[0] = (char) c;
             write(writeBuffer, 0, 1);
         }
@@ -123,6 +132,7 @@ public abstract class Writer implements Appendable, Closeable, Flushable {
      * @throws  IOException
      *          If an I/O error occurs
      */
+    // 写入一个字符数组。
     public void write(char cbuf[]) throws IOException {
         write(cbuf, 0, cbuf.length);
     }
@@ -142,6 +152,7 @@ public abstract class Writer implements Appendable, Closeable, Flushable {
      * @throws  IOException
      *          If an I/O error occurs
      */
+    // 写入一个字符数组的一部分。
     abstract public void write(char cbuf[], int off, int len) throws IOException;
 
     /**
@@ -153,6 +164,7 @@ public abstract class Writer implements Appendable, Closeable, Flushable {
      * @throws  IOException
      *          If an I/O error occurs
      */
+    // 写入一个字符串
     public void write(String str) throws IOException {
         write(str, 0, str.length());
     }
@@ -177,9 +189,12 @@ public abstract class Writer implements Appendable, Closeable, Flushable {
      * @throws  IOException
      *          If an I/O error occurs
      */
+     // 写入一个字符串的一部分。
     public void write(String str, int off, int len) throws IOException {
         synchronized (lock) {
             char cbuf[];
+            // 如果len小于等于WRITE_BUFFER_SIZE，cbuf为writeBuffer
+            // 如果大于，建立一个len长度的数组，赋值给cbuf（注意：没有赋值给writeBuffer！)
             if (len <= WRITE_BUFFER_SIZE) {
                 if (writeBuffer == null) {
                     writeBuffer = new char[WRITE_BUFFER_SIZE];
@@ -188,6 +203,7 @@ public abstract class Writer implements Appendable, Closeable, Flushable {
             } else {    // Don't permanently allocate very large buffers.
                 cbuf = new char[len];
             }
+            // str的元素复制到cbuf，然后cbuf写入输出流
             str.getChars(off, (off + len), cbuf, 0);
             write(cbuf, 0, len);
         }
@@ -220,6 +236,7 @@ public abstract class Writer implements Appendable, Closeable, Flushable {
      *
      * @since  1.5
      */
+    // 向写入器追加指定的字符序列。
     public Writer append(CharSequence csq) throws IOException {
         if (csq == null)
             write("null");
@@ -264,6 +281,7 @@ public abstract class Writer implements Appendable, Closeable, Flushable {
      *
      * @since  1.5
      */
+    // 向写入器追加指定字符序列的子序列。
     public Writer append(CharSequence csq, int start, int end) throws IOException {
         CharSequence cs = (csq == null ? "null" : csq);
         write(cs.subSequence(start, end).toString());
@@ -289,6 +307,7 @@ public abstract class Writer implements Appendable, Closeable, Flushable {
      *
      * @since 1.5
      */
+    // 向写入器追加单个字符的子序列。
     public Writer append(char c) throws IOException {
         write(c);
         return this;
@@ -310,12 +329,33 @@ public abstract class Writer implements Appendable, Closeable, Flushable {
      * @throws  IOException
      *          If an I/O error occurs
      */
+    /**
+     * 刷新流。
+     * 如果流在缓冲区中保存了各种write()方法中的任何字符，请立即将它们写入预期的目的地。
+     * 然后，如果目的地是另一个字符或字节流，刷新它。
+     * 因此，一次flush()调用将刷新写入器和输出流链中的所有缓冲区。
+     *
+     * <p> 如果这个流的目的是底层操作系统提供的抽象，例如文件，
+     * 那么刷新流只能保证先前写入到流的字节被传递给操作系统进行写入;
+     * 它不能保证它们确实被写入物理设备，如磁盘驱动器。
+     *
+     * @throws  IOException
+     *          If an I/O error occurs
+     */
     abstract public void flush() throws IOException;
 
     /**
      * Closes the stream, flushing it first. Once the stream has been closed,
      * further write() or flush() invocations will cause an IOException to be
      * thrown. Closing a previously closed stream has no effect.
+     *
+     * @throws  IOException
+     *          If an I/O error occurs
+     */
+    /**
+     * 关闭流，首先flush。
+     * 一旦流被关闭，进一步的write()或flush()调用将导致抛出IOException。
+     * 关闭以前关闭的流没有任何效果。
      *
      * @throws  IOException
      *          If an I/O error occurs

@@ -60,6 +60,7 @@ class ByteArrayInputStream extends InputStream {
      * The next byte to be read from the input stream buffer
      * will be <code>buf[pos]</code>.
      */
+    // 读取位置 相当于offset
     protected int pos;
 
     /**
@@ -179,11 +180,11 @@ class ByteArrayInputStream extends InputStream {
         } else if (off < 0 || len < 0 || len > b.length - off) {
             throw new IndexOutOfBoundsException();
         }
-
+        //当前位置大于等于当前对象内存中值的字节数组长度，说明字节全部读取完毕，直接返回
         if (pos >= count) {
             return -1;
         }
-
+        //字节数组中剩余数量
         int avail = count - pos;
         if (len > avail) {
             len = avail;
@@ -192,7 +193,8 @@ class ByteArrayInputStream extends InputStream {
             return 0;
         }
         System.arraycopy(buf, pos, b, off, len);
-        pos += len;
+        pos += len; //pos:postion 位置 这里姑且理解为指针，每一次读完之后，内存中的存放数据的数组位置向右滑动len个单位，读取下一帧
+
         return len;
     }
 
@@ -258,6 +260,7 @@ class ByteArrayInputStream extends InputStream {
      *
      * @since   JDK1.1
      */
+    //这个方法是和下面的reset方法结合着用的,这个是把重要的位置打标记，下面的是从标记的位置开始取值，即：重置，默认为标记点为0
     public void mark(int readAheadLimit) {
         mark = pos;
     }

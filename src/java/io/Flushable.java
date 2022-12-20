@@ -34,6 +34,10 @@ import java.io.IOException;
  *
  * @since 1.5
  */
+
+/**
+ * 可刷新是可以刷新的数据的目标。调用 flush 方法以将任何缓冲输出写入基础流。
+ */
 public interface Flushable {
 
     /**
