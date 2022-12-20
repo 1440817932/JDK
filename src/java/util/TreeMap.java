@@ -2624,6 +2624,9 @@ public class TreeMap<K,V>
         Entry<K,V> middle =  new Entry<>(key, value, null);
 
         // color nodes in non-full bottommost level red
+        // 最底部节点变红
+        // 第level级节点，实际上是buildFromSorted转换成红黑树后的最底端(假设根节点在最上方)的节点；
+        // 只将红黑树最底端的阶段着色为红色，其余都是黑色。
         if (level == redLevel)
             middle.color = RED;
 

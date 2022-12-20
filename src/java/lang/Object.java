@@ -498,6 +498,12 @@ public class Object {
      * @see        java.lang.Object#notify()
      * @see        java.lang.Object#notifyAll()
      */
+    // wait(0)和 wait()方法的实际意义是一样的，都表示在没有唤醒的情况下该线程一直处于等待状态
+    //   并发编程小知识 object.wait 和 object.wait(long timeout)
+    //相同点：
+    //  都会在拥有锁的时候立即释放锁，线程会被系统挂起，失去cpu时间片，得不到调度。
+    //不同点：
+    //  后者线程会在指定timeout的时间过去之后被唤醒
     public final void wait() throws InterruptedException {
         wait(0);
     }
