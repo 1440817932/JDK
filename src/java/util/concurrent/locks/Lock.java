@@ -181,6 +181,8 @@ public interface Lock {
      * circumstances and the exception type must be documented by that
      * {@code Lock} implementation.
      */
+    //若锁可用，立刻获得锁
+    //若锁不可用，阻塞当前线程直至获取到锁
     void lock();
 
     /**
@@ -229,6 +231,10 @@ public interface Lock {
      *         interrupted while acquiring the lock (and interruption
      *         of lock acquisition is supported)
      */
+    //若锁可用，立刻获得锁
+    //若锁不可用，当前线程将被阻塞，直至发生以下情况
+    //  1)当前线程获得锁
+    //  2)当前线程被其它线程中断
     void lockInterruptibly() throws InterruptedException;
 
     /**
@@ -258,6 +264,9 @@ public interface Lock {
      * @return {@code true} if the lock was acquired and
      *         {@code false} otherwise
      */
+    //若锁可用，立刻获得锁，并返回true
+    //若锁不可用，立刻返回false，而不阻塞当前线程
+    //该方法可以理解为尝试获取锁、或快速获取锁，因为该方法不会阻塞线程
     boolean tryLock();
 
     /**
@@ -318,6 +327,12 @@ public interface Lock {
      *         while acquiring the lock (and interruption of lock
      *         acquisition is supported)
      */
+    //若锁可用，立刻获得锁，并返回true
+    //若锁不可用，当前线程将被阻塞，直至发生以下情况
+    //  1）当前线程获的锁
+    //  2）当前线程被其它线程中断
+    //  3）超时
+
     boolean tryLock(long time, TimeUnit unit) throws InterruptedException;
 
     /**
@@ -332,6 +347,8 @@ public interface Lock {
      * Any restrictions and the exception
      * type must be documented by that {@code Lock} implementation.
      */
+    //释放锁
+    //释放锁的线程必须是持有当前锁的线程
     void unlock();
 
     /**
@@ -353,5 +370,8 @@ public interface Lock {
      * @throws UnsupportedOperationException if this {@code Lock}
      *         implementation does not support conditions
      */
+    //创建一个与当前锁绑定的Condition（条件）
+    //在条件满足之前，锁将被持有
+    //Condition一般可用于有界操作，如大小固定的缓冲区
     Condition newCondition();
 }

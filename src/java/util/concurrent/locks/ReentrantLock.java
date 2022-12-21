@@ -103,6 +103,27 @@ import java.util.Collection;
  * @since 1.5
  * @author Doug Lea
  */
+/*
+ReentrantLock可重入锁是Lock接口最为典型的一个实现类
+独占锁，即同一时刻，只能有一个线程持有锁
+可重入，持有锁的线程可再次获得锁，而无需等待
+提供公平锁、非公平锁两种模式，默认为非公平锁。对于公平锁，ReentrantLock保证先请求获取锁的线程，一定先获得锁，即“先到先得”
+
+    公平锁：多个线程按照申请锁的顺序去获得锁，线程会直接进入队列去排队，永远都是队列的第一位才能得到锁。
+        优点：所有的线程都能得到资源，不会饿死在队列中。
+        缺点：吞吐量会下降很多，队列里面除了第一个线程，其他的线程都会阻塞，cpu唤醒阻塞线程的开销会很大。
+
+    非公平锁：多个线程去获取锁的时候，会直接去尝试获取，获取不到，再去进入等待队列，如果能获取到，就直接获取到锁。
+        优点：可以减少CPU唤醒线程的开销，整体的吞吐效率会高点，CPU也不必取唤醒所有线程，会减少唤起线程的数量。
+        缺点：你们可能也发现了，这样可能导致队列中间的线程一直获取不到锁或者长时间获取不到锁，导致饿死。
+
+ */
+    /*
+    通过lock接口获取锁，大体上可以分为以下三种情况：
+        1）锁空闲，加锁并将持有锁的计数(state)加1。
+        2）锁被当前线程持有（重入），将持有锁的计数加一。
+        3）锁被其它线程持有，则阻塞当前线程直至获取到锁，然后将持有锁的计数设置为一。
+     */
 public class ReentrantLock implements Lock, java.io.Serializable {
     private static final long serialVersionUID = 7373984872572414699L;
     /** Synchronizer providing all implementation mechanics */
@@ -126,15 +147,18 @@ public class ReentrantLock implements Lock, java.io.Serializable {
          * Performs non-fair tryLock.  tryAcquire is implemented in
          * subclasses, but both need nonfair try for trylock method.
          */
+        // 以独占的形式快速获取同步状态
         final boolean nonfairTryAcquire(int acquires) {
             final Thread current = Thread.currentThread();
             int c = getState();
+            // 同步状态为0，锁空闲，可以立即获取锁
             if (c == 0) {
                 if (compareAndSetState(0, acquires)) {
                     setExclusiveOwnerThread(current);
                     return true;
                 }
             }
+            // 同步状态非0，锁被持有，判断是否重入
             else if (current == getExclusiveOwnerThread()) {
                 int nextc = c + acquires;
                 if (nextc < 0) // overflow
@@ -145,15 +169,24 @@ public class ReentrantLock implements Lock, java.io.Serializable {
             return false;
         }
 
+        // 释放同步状态
+        /*
+        tryRelease()方法主要是为了更新AQS中state变量的值。前文已经介绍过，对于独占锁来讲，
+        state等于0可以表示锁空闲，state大于0可以表示锁被持有。同时要考虑锁被重入的情况，
+        所以讲state值递减，直至为0，则同步状态完全被释放。
+         */
         protected final boolean tryRelease(int releases) {
             int c = getState() - releases;
+            // 释放锁的线程必须与AQS中持有同步状态的线程相同
             if (Thread.currentThread() != getExclusiveOwnerThread())
                 throw new IllegalMonitorStateException();
             boolean free = false;
+            // 完全释放同步状态，清空独占线程
             if (c == 0) {
                 free = true;
                 setExclusiveOwnerThread(null);
             }
+            // 更新state值
             setState(c);
             return free;
         }
@@ -202,6 +235,11 @@ public class ReentrantLock implements Lock, java.io.Serializable {
          * Performs lock.  Try immediate barge, backing up to normal
          * acquire on failure.
          */
+        /**
+         * 通过compareAndSetState()方法尝试立即获取同步状态
+         * 1）成功，返回
+         * 2）失败，调用acquire()方法继续获取同步状态
+         */
         final void lock() {
             if (compareAndSetState(0, 1))
                 setExclusiveOwnerThread(Thread.currentThread());
@@ -209,6 +247,22 @@ public class ReentrantLock implements Lock, java.io.Serializable {
                 acquire(1);
         }
 
+        /**
+         *tryAcquire()方法可以理解为“尝试获取同步状态”或“快速获取同步状态”。
+         * 该方法最大的特点是立刻返回是否成功获取同步状态，而不阻塞线程。
+         * 对于独占锁，获取同步状态的情况可以分为两种：锁空闲或线程重入，可以立即获取；锁被占用，以阻塞的形式获取。
+         * 因为当一个线程获取锁时，无法确定锁是否被持有，可以先通过tryAcquire()快速获取锁；若失败则将线程构造为Node节点加入阻塞队列，
+         * 当其满足出队条件后，将被唤醒，然后再次调用tryAcquire()方法获取同步状态。
+         */
+        /*
+        以独占的形式获取锁
+            1.成功，返回true
+            2.失败，判断是否重入
+                1）是，将同步状态加一并更新，返回true
+                2）否，锁被其它线程持有，返回false
+
+        该方法不会阻塞线程，而是立刻返回结果
+         */
         protected final boolean tryAcquire(int acquires) {
             return nonfairTryAcquire(acquires);
         }
@@ -228,10 +282,13 @@ public class ReentrantLock implements Lock, java.io.Serializable {
          * Fair version of tryAcquire.  Don't grant access unless
          * recursive call or no waiters or is first.
          */
+        // 公平锁模式保证先获取锁的线程一定能够先获得锁，简单理解就是“先到先得”
         protected final boolean tryAcquire(int acquires) {
             final Thread current = Thread.currentThread();
             int c = getState();
             if (c == 0) {
+                // hasQueuedPredecessors() 查询是否有线程等待获取的时间长于当前线程。
+               // 针对于lock()方法，非公平锁和公平锁的区别就在于在tryAcquire()方法中多了一个hasQueuedPredecessors()判断。即判断是否有线程等待获取的时间长于当前线程。
                 if (!hasQueuedPredecessors() &&
                     compareAndSetState(0, acquires)) {
                     setExclusiveOwnerThread(current);
@@ -330,6 +387,16 @@ public class ReentrantLock implements Lock, java.io.Serializable {
      * interrupt over normal or reentrant acquisition of the lock.
      *
      * @throws InterruptedException if the current thread is interrupted
+     */
+    // 以响应中断的模式获取同步状态
+    /*
+    lock()方法和lockInterruptibly()对线程中断的处理方式区别：
+        1.lock方法不响应中断，但是会记录中断状态，开发者需要自己去判断、并响应中断
+        2.lockInterruptibly()方法响应中断，若线程被中断，抛出InterruptedException异常
+
+    lock() 以阻塞的形式获取锁，不响应中断
+    lockInterruptibly() 以阻塞的形式获取锁，响应中断
+    tryLock() 以非阻塞的形式获取锁，不响应中断
      */
     public void lockInterruptibly() throws InterruptedException {
         sync.acquireInterruptibly(1);
@@ -437,6 +504,11 @@ public class ReentrantLock implements Lock, java.io.Serializable {
      * @throws InterruptedException if the current thread is interrupted
      * @throws NullPointerException if the time unit is null
      */
+    /*
+        lock() 以阻塞的形式获取锁，不响应中断
+    lockInterruptibly() 以阻塞的形式获取锁，响应中断
+    tryLock() 以非阻塞的形式获取锁，不响应中断
+     */
     public boolean tryLock(long timeout, TimeUnit unit)
             throws InterruptedException {
         return sync.tryAcquireNanos(1, unit.toNanos(timeout));
@@ -453,6 +525,9 @@ public class ReentrantLock implements Lock, java.io.Serializable {
      * @throws IllegalMonitorStateException if the current thread does not
      *         hold this lock
      */
+    // 解锁
+    //1.释放同步状态
+    //2.唤醒后继节点
     public void unlock() {
         sync.release(1);
     }
