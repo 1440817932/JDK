@@ -307,6 +307,46 @@ public abstract class ByteBuffer
      * @throws  IllegalArgumentException
      *          If the <tt>capacity</tt> is a negative integer
      */
+    /*
+    Direct和Heap类型Buffer的本质
+首选说说JVM是怎么进行IO操作的。
+
+        JVM在需要通过操作系统调用完成IO操作，比如可以通过read系统调用完成文件的读取。read的原型是：ssize_t read(int fd,void *buf,size_t nbytes)，和其他的IO系统调用类似，一般需要缓冲区作为其中一个参数，该缓冲区要求是连续的。
+
+Buffer分为Direct和Heap两类，下面分别说明这两类buffer。
+
+Heap
+    Heap类型的Buffer存在于JVM的堆上，这部分内存的回收与整理和普通的对象一样。Heap类型的Buffer对象都包含一个对应基本数据类型的数组属性（比如：final **[] hb），数组才是Heap类型Buffer的底层缓冲区。
+    但是Heap类型的Buffer不能作为缓冲区参数直接进行系统调用，主要因为下面两个原因。
+
+    JVM在GC时可能会移动缓冲区（复制-整理），缓冲区的地址不固定。
+    系统调用时，缓冲区需要是连续的，但是数组可能不是连续的（JVM的实现没要求连续）。
+    所以使用Heap类型的Buffer进行IO时，JVM需要产生一个临时Direct类型的Buffer，然后进行数据复制，再使用临时Direct的Buffer作为参数进行操作系统调用。这造成很低的效率，主要是因为两个原因：
+
+    需要把数据从Heap类型的Buffer里面复制到临时创建的Direct的Buffer里面。
+    可能产生大量的Buffer对象，从而提高GC的频率。所以在IO操作时，可以通过重复利用Buffer进行优化。
+Direct
+    Direct类型的buffer，不存在于堆上，而是JVM通过malloc直接分配的一段连续的内存，这部分内存成为直接内存，JVM进行IO系统调用时使用的是直接内存作为缓冲区。
+    -XX:MaxDirectMemorySize，通过这个配置可以设置允许分配的最大直接内存的大小（MappedByteBuffer分配的内存不受此配置影响）。
+    直接内存的回收和堆内存的回收不同，如果直接内存使用不当，很容易造成OutOfMemoryError。JAVA没有提供显示的方法去主动释放直接内存，sun.misc.Unsafe类可以进行直接的底层内存操作，通过该类可以主动释放和管理直接内存。同理，也应该重复利用直接内存以提高效率。
+     */
+    /*
+    那么问题来了，直接缓冲区与非直接缓冲区到底有什么区别呢？
+
+         直接字节缓冲区可以通过调用此类的allocateDirect() 工厂方法来创建。此方法返回的缓冲区进行分配和取消分配所需成本通常高于非直接缓冲区。
+        直接缓冲区的内容直接建立在物理内存(操作系统内存页)中，可以驻留在常规的垃圾回收堆之外.
+
+         非直接缓冲区通过allocate()方法创建，此方法分配的缓冲区是堆缓冲区，在JVM缓存中，由ＪＶＭ进行管理。但相比直接缓冲区多了一次拷贝，但却是可控的。
+     小结：
+
+            使用了DirectByteBuffer，一般来说可以减少一次系统空间到用户空间的拷贝。但Buffer创建和销毁的成本更高，更不宜维护，通常会用内存池来提高性能。
+
+            如果数据量比较小的中小应用情况下，可以考虑使用heapBuffer；反之可以用directBuffer。
+
+            因为直接缓冲区是不可控的，它们对应用程序的内存需求量造成的影响可能并不明显。所以，建议将直接缓冲区主要分配给那些易受基础系统的本机I/O 操作影响的大型、持久的缓冲区。仅在直接缓冲区能在程序性能方面带来明显好处时分配它们，否则分配非直接缓冲区。
+
+     */
+    // 分配新的直接字节缓冲区
     public static ByteBuffer allocateDirect(int capacity) {
         return new DirectByteBuffer(capacity);
     }
@@ -329,6 +369,7 @@ public abstract class ByteBuffer
      * @throws  IllegalArgumentException
      *          If the <tt>capacity</tt> is a negative integer
      */
+    // 分配一个新的字节缓冲区
     public static ByteBuffer allocate(int capacity) {
         if (capacity < 0)
             throw new IllegalArgumentException();
@@ -392,101 +433,10 @@ public abstract class ByteBuffer
      *
      * @return  The new byte buffer
      */
+    // 将 byte 数组包装到缓冲区中
     public static ByteBuffer wrap(byte[] array) {
         return wrap(array, 0, array.length);
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     /**
@@ -557,6 +507,7 @@ public abstract class ByteBuffer
      * @throws  BufferUnderflowException
      *          If the buffer's current position is not smaller than its limit
      */
+    // 读取单个字节（position向后递增）
     public abstract byte get();
 
     /**
@@ -576,6 +527,7 @@ public abstract class ByteBuffer
      * @throws  ReadOnlyBufferException
      *          If this buffer is read-only
      */
+    // 将给定单个字节写入缓冲区的当前位置（position+1）
     public abstract ByteBuffer put(byte b);
 
     /**
@@ -591,17 +543,8 @@ public abstract class ByteBuffer
      *          If <tt>index</tt> is negative
      *          or not smaller than the buffer's limit
      */
+    // 读取指定索引位置的字节(不会移动position)
     public abstract byte get(int index);
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -627,6 +570,7 @@ public abstract class ByteBuffer
      * @throws  ReadOnlyBufferException
      *          If this buffer is read-only
      */
+    // 将指定字节写入缓冲区的索引位置(不会移动position)
     public abstract ByteBuffer put(int index, byte b);
 
 
@@ -711,6 +655,7 @@ public abstract class ByteBuffer
      *          If there are fewer than <tt>length</tt> bytes
      *          remaining in this buffer
      */
+    // 批量读取多个字节到dst 中
     public ByteBuffer get(byte[] dst) {
         return get(dst, 0, dst.length);
     }
@@ -855,102 +800,10 @@ public abstract class ByteBuffer
      * @throws  ReadOnlyBufferException
      *          If this buffer is read-only
      */
+    // 将src 中的字节写入缓冲区的当前位置
     public final ByteBuffer put(byte[] src) {
         return put(src, 0, src.length);
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     // -- Other stuff --

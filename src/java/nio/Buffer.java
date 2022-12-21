@@ -171,7 +171,7 @@ import java.util.Spliterator;
  * @author JSR-51 Expert Group
  * @since 1.4
  */
-
+// NIO中的Buffer 主要用于与NIO 通道进行交互，数据是从通道读入缓冲区，从缓冲区写入通道中的。
 public abstract class Buffer {
 
     /**
@@ -213,6 +213,7 @@ public abstract class Buffer {
      *
      * @return  The capacity of this buffer
      */
+    // 返回Buffer 的capacity 大小
     public final int capacity() {
         return capacity;
     }
@@ -222,6 +223,7 @@ public abstract class Buffer {
      *
      * @return  The position of this buffer
      */
+    // 返回缓冲区的当前位置position
     public final int position() {
         return position;
     }
@@ -252,6 +254,7 @@ public abstract class Buffer {
      *
      * @return  The limit of this buffer
      */
+    // 返回Buffer 的界限(limit) 的位置
     public final int limit() {
         return limit;
     }
@@ -270,6 +273,7 @@ public abstract class Buffer {
      * @throws  IllegalArgumentException
      *          If the preconditions on <tt>newLimit</tt> do not hold
      */
+    // 将设置缓冲区界限为n, 并返回一个具有新limit 的缓冲区对象
     public final Buffer limit(int newLimit) {
         if ((newLimit > capacity) || (newLimit < 0))
             throw new IllegalArgumentException();
@@ -284,6 +288,7 @@ public abstract class Buffer {
      *
      * @return  This buffer
      */
+    // 对缓冲区设置标记
     public final Buffer mark() {
         mark = position;
         return this;
@@ -300,6 +305,7 @@ public abstract class Buffer {
      * @throws  InvalidMarkException
      *          If the mark has not been set
      */
+    // 将位置position 转到以前设置的mark 所在的位置
     public final Buffer reset() {
         int m = mark;
         if (m < 0)
@@ -353,6 +359,7 @@ public abstract class Buffer {
      *
      * @return  This buffer
      */
+    // 将缓冲区的界限设置为当前位置，并将当前位置充值为0
     public final Buffer flip() {
         limit = position;
         position = 0;
@@ -375,6 +382,7 @@ public abstract class Buffer {
      *
      * @return  This buffer
      */
+    // 将位置设为0，limit不变， 取消设置的mark
     public final Buffer rewind() {
         position = 0;
         mark = -1;
@@ -387,6 +395,7 @@ public abstract class Buffer {
      *
      * @return  The number of elements remaining in this buffer
      */
+    // 返回position 和limit 之间的元素个数，可读数据
     public final int remaining() {
         return limit - position;
     }
@@ -398,6 +407,7 @@ public abstract class Buffer {
      * @return  <tt>true</tt> if, and only if, there is at least one element
      *          remaining in this buffer
      */
+    // 判断缓冲区中是否还有元素
     public final boolean hasRemaining() {
         return position < limit;
     }
