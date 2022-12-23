@@ -692,6 +692,7 @@ public abstract class AbstractQueuedSynchronizer
          * to clear in anticipation of signalling.  It is OK if this
          * fails or if status is changed by waiting thread.
          */
+        // 此处的node表示的是 head 结点
         int ws = node.waitStatus;
         // 如果节点的waitStatus值小于0，则更新为0
         if (ws < 0)
@@ -703,8 +704,11 @@ public abstract class AbstractQueuedSynchronizer
          * traverse backwards from tail to find the actual
          * non-cancelled successor.
          */
+        // s 表示头结点的后继结点，之前 获取锁失败的时候 讲到要将该线程结点加入到等待队列的尾部，
+        // 但是 如果等待队列还未初始化，则new 一个空的Node 来表示head结点，所以head结点的后续结点才是真正的等待被唤醒的线程结点。
         Node s = node.next;
         // 回溯，保证后继节点及其状态的合法性
+        // 后继结点为null 或者 waitStatus > 0表示该线程的任务被取消
         if (s == null || s.waitStatus > 0) {
             s = null;
             for (Node t = tail; t != null && t != node; t = t.prev)
@@ -735,12 +739,15 @@ public abstract class AbstractQueuedSynchronizer
          */
         for (;;) {
             Node h = head;
+            // 表示等待队列中有等待的线程结点
             if (h != null && h != tail) {
                 int ws = h.waitStatus;
+                // 等待被唤醒
                 if (ws == Node.SIGNAL) {
+                    // 通过cas操作 将 头结点的 waitStatus置为0
                     if (!compareAndSetWaitStatus(h, Node.SIGNAL, 0))
                         continue;            // loop to recheck cases
-                    unparkSuccessor(h);
+                    unparkSuccessor(h);// 唤醒头结点的后续等待结点
                 }
                 else if (ws == 0 &&
                          !compareAndSetWaitStatus(h, 0, Node.PROPAGATE))
@@ -846,9 +853,22 @@ public abstract class AbstractQueuedSynchronizer
      * @param node the node
      * @return {@code true} if thread should block
      */
+    // 要作用是 判断是否需要中断 和 删除已经取消的线程结点
     private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
+
+        // 注意Node的waitStatus字段我们在上面创建Node的时候并没有指定 ，默认值是0
+        // waitStatus 的4种状态
+        //static final int CANCELLED =  1;    // 取消任务
+        //static final int SIGNAL    = -1;  //等待被唤醒
+        //static final int CONDITION = -2;   //条件锁使用
+        //static final int PROPAGATE = -3; //共享锁时使用
+
         // 获取前驱节点的状态
         int ws = pred.waitStatus;
+        /**
+         * 如果前置结点的状态是 SIGNAL 等待被唤醒，那么直接返回true，
+         * 表示当前线程对应的结点需要被阻塞；因为前面的线程还在等待被唤醒，更轮不到你了，直接等待阻塞吧
+         */
         // 前驱节点的状态为SIGNAL，则后继节点应被阻塞，返回true
         if (ws == Node.SIGNAL)
             /*
@@ -862,6 +882,9 @@ public abstract class AbstractQueuedSynchronizer
              * Predecessor was cancelled. Skip over predecessors and
              * indicate retry.
              */
+            /*
+             *ws > 0 表示该结点对应的线程已经取消任务了，那么循环遍历删除 已取消任务的结点，就是双向链表的删除
+             */
             do {
                 node.prev = pred = pred.prev;
             } while (pred.waitStatus > 0);
@@ -874,8 +897,17 @@ public abstract class AbstractQueuedSynchronizer
              * need a signal, but don't park yet.  Caller will need to
              * retry to make sure it cannot acquire before parking.
              */
+            // 设置前置结点的 waitStatus 为SIGNAL ，等待被唤醒
             compareAndSetWaitStatus(pred, ws, Node.SIGNAL);
         }
+        /*
+           return false 的意义：当前线程对应的结点的前置结点已经设置为SIGNAL 等待被唤醒，
+           但是不直接返回true，如果返回true就直接要阻塞当前线程啦，返回false，
+           那么之前 acquireQueued 方法的 无限循环 会再次判断 当前线程的前置结点是否是 head结点，
+           如果是的话就尝试获取锁。这样做的目的就是 ：Java 的线程是映射到操作系统原生线程之上的，
+           如果要阻塞或唤醒一个线程就需要操作系统的帮忙，这就要从用户态转换到核心态，而状态的切换是需要花费很多CPU时间的。
+         */
+
         return false;
     }
 
@@ -1581,6 +1613,11 @@ public abstract class AbstractQueuedSynchronizer
      * #tryAcquireShared}) then it is guaranteed that the current thread
      * is not the first queued thread.  Used only as a heuristic in
      * ReentrantReadWriteLock.
+     */
+    /**
+     * 如果明显的第一个排队线程（如果存在）正在以独占模式等待，则返回 true。
+     * 如果此方法返回 true，并且当前线程正在尝试以共享模式获取（即，从 tryAcquireShared 调用此方法），
+     * 则可以保证当前线程不是第一个排队的线程。仅在 ReentrantReadWriteLock 中用作启发式。
      */
     final boolean apparentlyFirstQueuedIsExclusive() {
         Node h, s;
