@@ -153,6 +153,7 @@ import java.util.concurrent.locks.AbstractQueuedSynchronizer;
  * @since 1.5
  * @author Doug Lea
  */
+//CountDownLatch是一个非常实用的多线程控制工具类，称之为“倒计时器”，它允许一个或多个线程一直等待，直到其他线程的操作执行完后再执行。
 public class CountDownLatch {
     /**
      * Synchronization control For CountDownLatch.

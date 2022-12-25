@@ -525,7 +525,7 @@ public class ReentrantReadWriteLock
             if (!readerShouldBlock() &&
                 r < MAX_COUNT &&
                 compareAndSetState(c, c + SHARED_UNIT)) {
-                // 满足条件： 等待队列不存在其他线程  && 获取锁次数小于最大值 && 获取锁成功（修改状态值）
+                // 满足条件： 等待队列不存在其他线程  && 获取锁次数小于最大值 && 获取锁成功（修改状态值+1）
                 // r = 0 表示是读锁次数为零（第一个获取读锁的线程），记录下 firstReader 等于当前线程
                 if (r == 0) {
                     // 由于 r = 0，所以设置线程为第一个获取读锁的线程
@@ -572,42 +572,45 @@ public class ReentrantReadWriteLock
                         return -1;
                     // else we hold the exclusive lock; blocking here
                     // would cause deadlock.
+                    // readerShouldBlock判断队列是否有元素，并返回true
                 } else if (readerShouldBlock()) {
                     // Make sure we're not acquiring read lock reentrantly
-                    if (firstReader == current) {
+                    if (firstReader == current) {// 如果记录的当前线程 和 当前线程 是同一个 逻辑到后面去尝试获取锁
                         // assert firstReaderHoldCount > 0;
-                    } else {
-                        if (rh == null) {
-                            rh = cachedHoldCounter;
-                            if (rh == null || rh.tid != getThreadId(current)) {
-                                rh = readHolds.get();
-                                if (rh.count == 0)
+                    } else {// 记录 与 当前 线程不同
+                        if (rh == null) {// 第一次循环为空
+                            rh = cachedHoldCounter;// 最后一次获取锁的线程
+                            if (rh == null || rh.tid != getThreadId(current)) {// 最后一次获取锁的线程 不是当前线程
+                                rh = readHolds.get();// 从ThreadLocal 获取当前线程的 HoldCounter
+                                if (rh.count == 0) // 如果当前线程获取锁后执行完了 需要删除HoldCounter
                                     readHolds.remove();
                             }
                         }
-                        if (rh.count == 0)
+                        if (rh.count == 0)// 即这个线程之前获取读锁执行完毕后（count减1变成了0）
                             return -1;
                     }
                 }
+
+                // 判断持有锁次数是否等于最大值，因为获取一次锁需要使记录的次数 +1， 如果等于就不能再获取锁啦
                 if (sharedCount(c) == MAX_COUNT)
                     throw new Error("Maximum lock count exceeded");
-                if (compareAndSetState(c, c + SHARED_UNIT)) {
-                    if (sharedCount(c) == 0) {
-                        firstReader = current;
-                        firstReaderHoldCount = 1;
-                    } else if (firstReader == current) {
-                        firstReaderHoldCount++;
-                    } else {
+                if (compareAndSetState(c, c + SHARED_UNIT)) {// 尝试获取锁，记录获取锁的状态值加一 （高十六位加一）
+                    if (sharedCount(c) == 0) {// 获取读锁的次数为零
+                        firstReader = current; // 设置当前线程是获取锁线程
+                        firstReaderHoldCount = 1; // 获取读锁次数加一
+                    } else if (firstReader == current) { // 如果有线程获取了读锁且是当前线程获取的
+                        firstReaderHoldCount++;// 获取锁的次数加一
+                    } else { // 如果有线程获取了读锁 且 不是当前线程获取的
                         if (rh == null)
-                            rh = cachedHoldCounter;
-                        if (rh == null || rh.tid != getThreadId(current))
+                            rh = cachedHoldCounter; // 获取最新获取锁线程赋值
+                        if (rh == null || rh.tid != getThreadId(current))// 最后获取锁线程不是当前线程，从ThreadLocal 获取当前线程的 HoldCounter
                             rh = readHolds.get();
                         else if (rh.count == 0)
                             readHolds.set(rh);
-                        rh.count++;
-                        cachedHoldCounter = rh; // cache for release
+                        rh.count++; // 当前线程获取锁的记录 +1
+                        cachedHoldCounter = rh; // cache for release // 保存最后获取锁的线程
                     }
-                    return 1;
+                    return 1;// 返回获取锁成功
                 }
             }
         }

@@ -136,6 +136,19 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * @author Doug Lea
  */
+/*
+        CyclicBarrier 的字面意思是可循环使用（Cyclic）的屏障（Barrier）。它要做的事情是，
+        让一组线程到达一个屏障（也可以叫同步点）时被阻塞，直到最后一个线程到达屏障时，屏障才会开门，所有被屏障拦截的线程才会继续干活。
+
+        这个屏障之所以用循环修饰，是因为在所有的线程释放彼此之后，这个屏障是可以重新使用的（reset()方法重置屏障点），这一点与CountDownLatch不同。
+
+        CyclicBarrier是一种同步机制允许一组线程相互等待，等到所有线程都到达一个屏障点才退出await方法，它没有直接实现AQS而是借助ReentrantLock来实现的同步机制。
+        它是可循环使用的，而CountDownLatch是一次性的，另外它体现的语义也跟CountDownLatch不同，CountDownLatch减少计数到达条件采用的是release方式，
+        而CyclicBarrier走向屏障点（await）采用的是Acquire方式，Acquire是会阻塞的，这也实现了CyclicBarrier的另外一个特点，
+        只要有一个线程中断那么屏障点就被打破，所有线程都将被唤醒（CyclicBarrier自己负责这部分实现，不是由AQS调度的），这样也避免了因为一个线程中断引起永远不能到达屏障点而导致其他线程一直等待。
+        屏障点被打破的CyclicBarrier将不可再使用（会抛出BrokenBarrierException）除非执行reset操作。
+
+ */
 public class CyclicBarrier {
     /**
      * Each use of the barrier is represented as a generation instance.
@@ -147,6 +160,10 @@ public class CyclicBarrier {
      * and all the rest are either broken or tripped.
      * There need not be an active generation if there has been a break
      * but no subsequent reset.
+     */
+    /*
+    Generation描述着CyclicBarrier的更新换代。在CyclicBarrier中，同一批线程属于同一代。
+    当有parties个线程到达barrier之后，generation就会被更新换代。其中broken标识该当前CyclicBarrier是否已经处于中断状态。
      */
     private static class Generation {
         boolean broken = false;
@@ -168,6 +185,7 @@ public class CyclicBarrier {
      * on each generation.  It is reset to parties on each new
      * generation or when broken.
      */
+    // 等待到0 执行
     private int count;
 
     /**
@@ -189,37 +207,73 @@ public class CyclicBarrier {
     private void breakBarrier() {
         generation.broken = true;
         count = parties;
-        trip.signalAll();
+        trip.signalAll();// 唤醒所有线程
     }
 
     /**
      * Main barrier code, covering the various policies.
      */
+    /*
+    dowait(boolean, long)方法的主要逻辑处理比较简单，如果该线程不是最后一个调用await方法的线程，则它会一直处于等待状态，除非发生以下情况：
+
+        最后一个线程到达，即index == 0
+        某个参与线程等待超时
+        某个参与线程被中断
+        调用了CyclicBarrier的reset()方法。该方法会将屏障重置为初始状态
+
+        下面代码中我们总是可以看到抛出BrokenBarrierException异常，那么什么时候抛出异常呢？
+        如果一个线程处于等待状态时，如果其他线程调用reset()，或者调用的barrier原本就是被损坏的，则抛出BrokenBarrierException异常。
+        同时，任何线程在等待时被中断了，则其他所有线程都将抛出BrokenBarrierException异常，并将barrier置于损坏状态。
+
+
+        除了上面讲到的栅栏更新换代以及损坏状态，我们在使用CyclicBarrier时还要要注意以下几点：
+
+            1）CyclicBarrier使用独占锁来执行await方法，并发性可能不是很高
+            2）如果在等待过程中，线程被中断了，就抛出异常。但如果中断的线程所对应的CyclicBarrier不是这代的，比如，在最后一次线程执行signalAll后，并且更新了这个“代”对象。
+            在这个区间，这个线程被中断了，那么，JDK认为任务已经完成了，就不必在乎中断了，只需要打个标记。该部分源码已在dowait(boolean, long)方法中进行了注释。
+            3）如果线程被其他的CyclicBarrier唤醒了，那么g肯定等于generation，这个事件就不能return了，而是继续循环阻塞。反之，如果是当前CyclicBarrier唤醒的，
+            就返回线程在CyclicBarrier的下标。完成了一次冲过栅栏的过程。该部分源码已在dowait(boolean, long)方法中进行了注释。
+
+     */
+
+    /**
+     * CyclicBarrier和CountDownLatch的区别
+     *  1）CountDownLatch的计数器只能使用一次，而CyclicBarrier的计数器可以使用reset()方法重置，可以使用多次，所以CyclicBarrier能够处理更为复杂的场景；
+     *
+     * 2）CyclicBarrier还提供了一些其他有用的方法，比如getNumberWaiting()方法可以获得CyclicBarrier阻塞的线程数量，isBroken()方法用来了解阻塞的线程是否被中断；
+     *
+     * 3）CountDownLatch允许一个或多个线程等待一组事件的产生，而CyclicBarrier用于等待其他线程运行到栅栏位置。
+
+     */
     private int dowait(boolean timed, long nanos)
         throws InterruptedException, BrokenBarrierException,
                TimeoutException {
         final ReentrantLock lock = this.lock;
+        // 获取独占锁
         lock.lock();
         try {
+            // 当前代
             final Generation g = generation;
-
+            // 如果这代损坏了，抛出异常
             if (g.broken)
                 throw new BrokenBarrierException();
 
-            if (Thread.interrupted()) {
+            if (Thread.interrupted()) {//只要有一个线程中断那么屏障点就被打破，所有线程都将被唤醒
+                // 将损坏状态设置为true
+                // 所有线程都将被唤醒
                 breakBarrier();
                 throw new InterruptedException();
             }
-
+            // 获取下标
             int index = --count;
-            if (index == 0) {  // tripped
+            if (index == 0) {  // tripped// 如果是 0，说明最后一个线程调用了该方法
                 boolean ranAction = false;
                 try {
                     final Runnable command = barrierCommand;
-                    if (command != null)
+                    if (command != null) // 执行栅栏任务
                         command.run();
                     ranAction = true;
-                    nextGeneration();
+                    nextGeneration(); // 唤醒所有等待线程，更新一代，将count重置，将generation重置
                     return 0;
                 } finally {
                     if (!ranAction)
@@ -230,34 +284,40 @@ public class CyclicBarrier {
             // loop until tripped, broken, interrupted, or timed out
             for (;;) {
                 try {
-                    if (!timed)
+                    if (!timed)// 如果没有时间限制，则直接等待，直到被唤醒
                         trip.await();
                     else if (nanos > 0L)
-                        nanos = trip.awaitNanos(nanos);
+                        nanos = trip.awaitNanos(nanos);// 如果有时间限制，则等待指定时间
                 } catch (InterruptedException ie) {
-                    if (g == generation && ! g.broken) {
-                        breakBarrier();
+                    if (g == generation && ! g.broken) {// 当前代没有损坏
+                        breakBarrier();// 让栅栏失效
                         throw ie;
                     } else {
                         // We're about to finish waiting even if we had not
                         // been interrupted, so this interrupt is deemed to
                         // "belong" to subsequent execution.
+                        // 上面条件不满足，说明这个线程不是这代的
+                        // 就不会影响当前这代栅栏的执行，所以，就打个中断标记
                         Thread.currentThread().interrupt();
                     }
                 }
 
                 if (g.broken)
                     throw new BrokenBarrierException();
-
+                // g != generation表示正常换代了，返回当前线程所在栅栏的下标
+                // 如果 g == generation，说明还没有换代，那为什么会醒了？
+                // 因为一个线程可以使用多个栅栏，当别的栅栏唤醒了这个线程，就会走到这里，所以需要判断是否是当前代。
+                // 正是因为这个原因，才需要generation来保证正确。
                 if (g != generation)
                     return index;
-
+                // 如果有时间限制，且时间小于等于0，销毁栅栏并抛出异常
                 if (timed && nanos <= 0L) {
                     breakBarrier();
                     throw new TimeoutException();
                 }
             }
         } finally {
+            // 释放独占锁
             lock.unlock();
         }
     }
@@ -357,6 +417,7 @@ public class CyclicBarrier {
      *         broken when {@code await} was called, or the barrier
      *         action (if present) failed due to an exception
      */
+    //每个线程使用await()方法告诉CyclicBarrier我已经到达了屏障，然后当前线程被阻塞。
     public int await() throws InterruptedException, BrokenBarrierException {
         try {
             return dowait(false, 0L);
