@@ -123,6 +123,14 @@ ReentrantLock可重入锁是Lock接口最为典型的一个实现类
         1）锁空闲，加锁并将持有锁的计数(state)加1。
         2）锁被当前线程持有（重入），将持有锁的计数加一。
         3）锁被其它线程持有，则阻塞当前线程直至获取到锁，然后将持有锁的计数设置为一。
+
+    ReentrantLock与synchronized相比增加了一些高级功能，主要有以下三项：等待可中断、可实现公 平锁及锁可以绑定多个条件。
+
+    ReentrantLock不过一旦使用了公平锁，将会导致ReentrantLock的性能急剧下降，会明显影响吞吐量。
+
+    锁绑定多个条件：是指一个ReentrantLock对象可以同时绑定多个Condition对象。在synchronized 中，
+    锁对象的wait()跟它的notify()或者notifyAll()方法配合可以实现一个隐含的条件，如果要和多于一 个的条件关联的时候，
+    就不得不额外添加一个锁；而ReentrantLock则无须这样做，多次调用 newCondition()方法即可。
      */
 public class ReentrantLock implements Lock, java.io.Serializable {
     private static final long serialVersionUID = 7373984872572414699L;

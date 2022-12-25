@@ -179,6 +179,11 @@ class Thread implements Runnable {
 
     /* ThreadLocal values pertaining to this thread. This map is maintained
      * by the ThreadLocal class. */
+    /*
+    每一个线程的Thread对象中都 有一个ThreadLocalMap对象，这个对象存储了一组以ThreadLocal.threadLocalHashCode为键，
+    以本地线 程变量为值的K-V值对，ThreadLocal对象就是当前线程的ThreadLocalMap的访问入口，每一个 ThreadLocal对象都包含了
+    一个独一无二的threadLocalHashCode值，使用这个值就可以在线程K-V值对 中找回对应的本地线程变量。
+     */
     ThreadLocal.ThreadLocalMap threadLocals = null;
 
     /*
