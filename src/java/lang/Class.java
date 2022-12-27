@@ -954,7 +954,60 @@ public final class Class<T> implements java.io.Serializable,
      * @see     java.lang.reflect.Modifier
      * @since JDK1.1
      */
-    public native int getModifiers();
+    /*
+    java.lang.reflect.Modifier 可以用来解码 Class 修饰符。我们可以使用 Class.getModifiers() 获得调用类的修饰符的二进制值，
+    然后使用 Modifier.toString(int modifiers) 将获取到的二进制值转换为字符串。
+
+
+        public class A
+        {
+            String name;
+            public class B{};
+            protected class C{};
+            private class D{};
+            public static class E{};
+            abstract class F{};
+            interface G{};
+        }
+
+        public class ModifierTest
+        {
+            public static void printModifier(String ClassPath) throws ClassNotFoundException
+            {
+                Class aClass=Class.forName(ClassPath);
+                int modifier=aClass.getModifiers();
+                System.out.println(ClassPath+"的修饰符为："+Modifier.toString(modifier));
+            }
+            public static void main(String[] args) throws ClassNotFoundException
+            {
+                printModifier("reflect.A");
+                printModifier("reflect.A$B");
+                printModifier("reflect.A$C");
+                printModifier("reflect.A$D");
+                printModifier("reflect.A$E");
+                printModifier("reflect.A$F");
+                printModifier("reflect.A$G");
+            }
+
+        }
+
+        reflect.A的修饰符为：public
+        reflect.A$B的修饰符为：public
+        reflect.A$C的修饰符为：protected
+        reflect.A$D的修饰符为：private
+        reflect.A$E的修饰符为：public static
+        reflect.A$F的修饰符为：abstract
+        reflect.A$G的修饰符为：abstract static interface
+
+     */
+    /*
+    注意：
+        Interface 默认是 abstract 的，虽然我们没有添加，编译器会在编译器为每个 Interface 添加这个修饰符。
+        只有被 @Retention(RetentionPolicy.RUNTIME) 修饰的注解才可以在运行时被发射获取
+        Java 中预定义的注解 @Deprecated,@Override, 和 @SuppressWarnings 中只有 @Deprecated 可以在运行时被访问到
+
+     */
+    public native int getModifiers();//获取当前Class类的修饰符编码(int 类型)，
 
 
     /**
@@ -1485,6 +1538,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @since JDK1.1
      */
+    //返回公有内部类和接口(包括继承)
     @CallerSensitive
     public Class<?>[] getClasses() {
         checkMemberAccess(Member.PUBLIC, Reflection.getCallerClass(), false);
@@ -1861,6 +1915,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @since JDK1.1
      */
+    //所有内部类和接口（不包括继承）
     @CallerSensitive
     public Class<?>[] getDeclaredClasses() throws SecurityException {
         checkMemberAccess(Member.DECLARED, Reflection.getCallerClass(), false);
