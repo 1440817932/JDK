@@ -1168,7 +1168,7 @@ public abstract class AbstractQueuedSynchronizer
                 if (p == head) { // 如果上一个节点是头节点（头节点的下一个才是获取锁的线程），即当前线程
                     int r = tryAcquireShared(arg); // 尝试获取锁
                     if (r >= 0) {// 当前线程获取锁成功
-                        setHeadAndPropagate(node, r); // 头节点的下一个是 SHARED 节点（共享同步状态） 下一次获取共享同步状态将被无条件传递下去
+                        setHeadAndPropagate(node, r); // 把node作为头节点，然后再唤醒当前节点下一个节点 下一次获取共享同步状态将被无条件传递下去
                         p.next = null; // help GC
                         if (interrupted) // 是否要中断当前线程
                             selfInterrupt();
@@ -2149,14 +2149,18 @@ public abstract class AbstractQueuedSynchronizer
          * without requiring many re-traversals during cancellation
          * storms.
          */
+        // 已经不是条件状态等待节点的断开连接
+        // 重新赋值 队列第一个 和 最后一个节点
         private void unlinkCancelledWaiters() {
             Node t = firstWaiter;
+            // 记录节点
             Node trail = null;
             while (t != null) {
                 Node next = t.nextWaiter;
-                if (t.waitStatus != Node.CONDITION) {
-                    t.nextWaiter = null;
+                if (t.waitStatus != Node.CONDITION) {// 当前节点不是条件等待状态
+                    t.nextWaiter = null;// 赋值为空
                     if (trail == null)
+                        // 说明是此前循环都不是等待状态节点
                         firstWaiter = next;
                     else
                         trail.nextWaiter = next;
@@ -2164,7 +2168,7 @@ public abstract class AbstractQueuedSynchronizer
                         lastWaiter = trail;
                 }
                 else
-                    trail = t;
+                    trail = t;// 当前节点是条件等待状态，记录节点赋值当前节点
                 t = next;
             }
         }
