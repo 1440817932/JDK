@@ -186,21 +186,27 @@ public final class ServiceLoader<S>
     implements Iterable<S>
 {
 
+    //扫描目录前缀
     private static final String PREFIX = "META-INF/services/";
 
     // The class or interface representing the service being loaded
+    // 被加载的类或接口
     private final Class<S> service;
 
     // The class loader used to locate, load, and instantiate providers
+    // 用于定位、加载和实例化实现方实现的类的类加载器
     private final ClassLoader loader;
 
     // The access control context taken when the ServiceLoader is created
+    // 上下文对象
     private final AccessControlContext acc;
 
     // Cached providers, in instantiation order
+    // 按照实例化的顺序缓存已经实例化的类
     private LinkedHashMap<String,S> providers = new LinkedHashMap<>();
 
     // The current lazy-lookup iterator
+    // 懒查找迭代器
     private LazyIterator lookupIterator;
 
     /**
@@ -319,7 +325,29 @@ public final class ServiceLoader<S>
     }
 
     // Private inner class implementing fully-lazy provider lookup
-    //
+    // 私有内部类，提供对所有的service的类的加载与实例化
+    /*
+    LazyIterator是一个私有的内部类，其作用是扫描包括所有引用的iar包里的META-INF/services/
+    目录下的配置文件并parse其中的配置的所有的service的名字
+     */
+    /*
+     API （Application Programming Interface）在大多数情况下，都是实现方制定接口并完成对接口的实现，调用方仅仅依赖接口调用，且无权选择不同实现。 从使用人员上来说，API 直接被应用开发人员使用。
+
+    SPI （Service Provider Interface）是调用方来制定接口规范，提供给外部来实现，调用方在调用时则选择自己需要的外部实现。从使用人员上来说，SPI 被框架扩展人员使用。
+
+    上面的java spi的原理中可以了解到，java的spi机制有着如下的弊端：
+
+        只能遍历所有的实现，并全部实例化。
+        配置文件中只是简单的列出了所有的扩展实现，而没有给他们命名。导致在程序中很难去准确的引用它们。
+        扩展如果依赖其他的扩展，做不到自动注入和装配。
+        扩展很难和其他的框架集成，比如扩展里面依赖了一个Spring bean，原生的Java SPI不支持。
+
+     关于spi的详解到此就结束了，总结下spi能带来的好处：
+
+        不需要改动源码就可以实现扩展，解耦。
+        实现扩展对原来的代码几乎没有侵入性。
+        只需要添加配置就可以实现扩展，符合开闭原则。
+     */
     private class LazyIterator
         implements Iterator<S>
     {
@@ -339,8 +367,10 @@ public final class ServiceLoader<S>
             if (nextName != null) {
                 return true;
             }
+
             if (configs == null) {
                 try {
+                    //获取目录下所有的类
                     String fullName = PREFIX + service.getName();
                     if (loader == null)
                         configs = ClassLoader.getSystemResources(fullName);
@@ -367,6 +397,7 @@ public final class ServiceLoader<S>
             nextName = null;
             Class<?> c = null;
             try {
+                // 反射加载类
                 c = Class.forName(cn, false, loader);
             } catch (ClassNotFoundException x) {
                 fail(service,
@@ -377,7 +408,9 @@ public final class ServiceLoader<S>
                      "Provider " + cn  + " not a subtype");
             }
             try {
+                // 实例化
                 S p = service.cast(c.newInstance());
+                // 放进缓存
                 providers.put(cn, p);
                 return p;
             } catch (Throwable x) {
@@ -528,11 +561,12 @@ public final class ServiceLoader<S>
      *
      * @param  <S> the class of the service type
      *
-     * @param  service
+     * @param  service 代表服务的接口或抽象类
      *         The interface or abstract class representing the service
      *
      * @return A new service loader
      */
+    //传入当前线程的类加载器，和这个class对象，构造一个新的ServiceLoader对象。
     public static <S> ServiceLoader<S> load(Class<S> service) {
         ClassLoader cl = Thread.currentThread().getContextClassLoader();
         return ServiceLoader.load(service, cl);

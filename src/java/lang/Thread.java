@@ -1452,6 +1452,9 @@ class Thread implements Runnable {
      *
      * @since 1.2
      */
+    /*
+    getClassLoader是使用双亲委派模型来加载类的,而getContextClassLoader就是为了避开双亲委派模型的加载方式的,也就是说它不是用这种方式来加载类
+     */
     @CallerSensitive
     public ClassLoader getContextClassLoader() {
         if (contextClassLoader == null)
