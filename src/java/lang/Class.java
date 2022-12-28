@@ -2312,6 +2312,36 @@ public final class Class<T> implements java.io.Serializable,
      *              resource with this name is found
      * @since  JDK1.1
      */
+    /*
+    下面是一些得到classpath和当前类的绝对路径的一些方法。你可能需要使用其中的一些方法来得到你需要的资源的绝对路径。
+
+　　1.FileTest.class.getResource("")
+　　得到的是当前类FileTest.class文件的URI目录。不包括自己！
+
+　　如：file:/D:/java/eclipse32/workspace/jbpmtest3/bin/com/test/
+
+　　2.FileTest.class.getResource("/")
+　　得到的是当前的classpath的绝对URI路径。
+
+　　如：file:/D:/java/eclipse32/workspace/jbpmtest3/bin/
+
+　　3.Thread.currentThread().getContextClassLoader().getResource("")
+　　得到的也是当前ClassPath的绝对URI路径。
+
+　　如：file:/D:/java/eclipse32/workspace/jbpmtest3/bin/
+
+　　4.FileTest.class.getClassLoader().getResource("")
+　　得到的也是当前ClassPath的绝对URI路径。
+
+　　如：file:/D:/java/eclipse32/workspace/jbpmtest3/bin/
+
+　　5.ClassLoader.getSystemResource("")
+　　得到的也是当前ClassPath的绝对URI路径。
+
+　　如：file:/D:/java/eclipse32/workspace/jbpmtest3/bin/
+
+　　我推荐使用Thread.currentThread().getContextClassLoader().getResource("")来得到当前的classpath的绝对路径的URI表示法。
+     */
     public java.net.URL getResource(String name) {
         name = resolveName(name);
         ClassLoader cl = getClassLoader0();
