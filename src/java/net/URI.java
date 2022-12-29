@@ -460,7 +460,46 @@ import java.lang.NullPointerException;  // for javadoc
  * Literal IPv6 Addresses in URLs</i></a>, <br><a
  * href="URISyntaxException.html">URISyntaxException</a>
  */
+/*
+1.URI，统一资源标识符，标识互联网上的某个网络资源，标识方式如 名称，位置等；就像人的标识一样，可以通过身份证或学生证号或社保号码等来标识；（但不一定靠位置来标识）
+2.URL， 统一资源定位符，唯一标识一个资源在internet上的位置（仅靠位置来标识）；所以 URL 是 URI标识网络资源的一种方式；即 URI可标识的资源范围比URL大；
+    URI与URL都是定位资源位置的，就是表示这个资源的位置信息，就像经纬度一样可以表示你在世界的那个角落
+    URI是一种宽泛的含义更广的定义，而URL则是URI的一个子集，就是说URL是URI的一部分
+    每个URL都是URI，但不是每个URI都是URL
+    URL是可以直接操作的，但是URI并不行
+    在java.net.URI，只能看到他的一些属性，他只是表示一个表示，但是你没有办法通过URI获取这个对象的流
+    但是URL不一样。java.net.URL该类提供方法openConnection()，通过该方法我们可以通过IO流操作它
 
+URL9个基本组成部分：
+    <scheme>://<user>:<password>@<host>:<port>/<path>;<params>?<query>#<fragment>
+        scheme
+        获取资源使用的协议，例如:http、ftp等，没有默认值
+
+        user:password
+        用户名与密码，这个是一个特殊的存在，一般访问ftp时会用到，她显示的表明了访问资源的用户名和密码。
+        但是这个可以不写，不写的话可能会让你输入用户名密码
+
+        host
+        主机，访问的那台主机，有时候可以是IP，有时候是主机名，例如www.baidu.com
+
+        port
+        端口，访问主机时的端口，如果http访问默认80，可以省略
+
+        path
+        通过host:port我们能找到主机，但是主机上文件很多，通过path则可能定位具体文件
+
+        Params
+        主要作用就是向服务器提供额外的参数，用来表示本次请求的一些特性
+
+        例如ftp传输模式有两种，二进制和文本，type=d
+
+        query
+        通过get方式请求的参数
+        例如：www.qiandu.com/index.html?username=dgh&passwd=123
+
+        Fragment
+        当html页面比较长时，我们通常会将其分为好几段，#1就可以快速定位到某一段
+ */
 public final class URI
     implements Comparable<URI>, Serializable
 {

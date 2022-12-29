@@ -133,6 +133,10 @@ import sun.security.util.SecurityConstants;
  * @author  James Gosling
  * @since JDK1.0
  */
+/*
+1.URI，统一资源标识符，标识互联网上的某个网络资源，标识方式如 名称，位置等；就像人的标识一样，可以通过身份证或学生证号或社保号码等来标识；（但不一定靠位置来标识）
+2.URL， 统一资源定位符，唯一标识一个资源在internet上的位置（仅靠位置来标识）；所以 URL 是 URI标识网络资源的一种方式；即 URI可标识的资源范围比URL大；
+ */
 public final class URL implements java.io.Serializable {
 
     static final long serialVersionUID = -7627629688361524110L;
