@@ -858,13 +858,15 @@ public class ArrayList<E> extends AbstractList<E>
         int r = 0, w = 0;
         boolean modified = false;
         try {
-            for (; r < size; r++)
+            for (; r < size; r++)//遍历组数所有内容，直到ArrayIndexOutOfBoundsException出现，走finally
                 if (c.contains(elementData[r]) == complement)
                     elementData[w++] = elementData[r];
         } finally {
             // Preserve behavioral compatibility with AbstractCollection,
             // even if c.contains() throws.
+            //保持与AbstractCollection的行为兼容性，即使c.contains（）抛出
             if (r != size) {
+                // 走到这说明发生异常了，将后面内容补充完整？
                 System.arraycopy(elementData, r,
                         elementData, w,
                         size - r);
@@ -872,6 +874,7 @@ public class ArrayList<E> extends AbstractList<E>
             }
             if (w != size) {
                 // clear to let GC do its work
+                // 赋值将后面的内容赋值为空（因为是再同一个数组进行操作），进行内存回收
                 for (int i = w; i < size; i++)
                     elementData[i] = null;
                 modCount += size - w;
