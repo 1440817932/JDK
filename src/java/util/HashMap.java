@@ -491,7 +491,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     //
     // 扩容阈值：
     // 1）当HashMap的个数达到g该值，触发扩容
-    // 2）初始化时的容量，在我们新建HashMap对象时，threshold 还会被用来村初始化时的容量。
+    // 2）初始化时的容量，在我们新建HashMap对象时，threshold 还会被用来存初始化时的容量。
     // 3）HashMap 直到我们第一次插入节点时，才会对table进行初始化，避免不必要的空间浪费。
 
     int threshold;
@@ -573,7 +573,13 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         int s = m.size();
         if (s > 0) {
             if (table == null) { // pre-size
+                // 如果未初始化，则计算HashMap的最小需要的容量（即容量刚好不大于扩容阈值）。这里Map的大小s就被当作HashMap的扩容阈值，然后用传入Map的大小除以负载因子就能得到对应的HashMap的容量大小（当前m的大小 / 负载因子 = HashMap容量）
+                // 先不考虑容量必须为2的幂，那么下面括号里会算出来一个容量，使得size刚好不大于阈值。但这样会算出小数来，但作为容量就必须向上取整，所以这里要加1。此时ft可以临时看作HashMap容量大小
                 float ft = ((float)s / loadFactor) + 1.0F;
+                /*
+                如果我们设置的默认值是7，经过Jdk处理之后，会被设置成8，但是，这个HashMap在元素个数达到 8*0.75 = 6的时候就会进行一次扩容，这明显是我们不希望见到的。
+                如果我们通过expectedSize / 0.75F + 1.0F计算，7/0.75 + 1 = 10 ,10经过Jdk处理之后，会被设置成16，这就大大的减少了扩容的几率。
+                 */
                 int t = ((ft < (float)MAXIMUM_CAPACITY) ?
                          (int)ft : MAXIMUM_CAPACITY);
                 if (t > threshold)
@@ -1037,7 +1043,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     final Node<K,V> removeNode(int hash, Object key, Object value,
                                boolean matchValue, boolean movable) {
         Node<K,V>[] tab; Node<K,V> p; int n, index;
-        //
+        //p:要删除节点坐在数组位置，先找到删除节点，然后赋值给node
         if ((tab = table) != null && (n = tab.length) > 0 &&
             (p = tab[index = (n - 1) & hash]) != null) {
             // node要删除的节点
@@ -1046,12 +1052,12 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             if (p.hash == hash &&
                 ((k = p.key) == key || (key != null && key.equals(k))))
                 node = p;
-            else if ((e = p.next) != null) {
+            else if ((e = p.next) != null) {//删除节点不是数组第一个
                 if (p instanceof TreeNode)
                     // 获取树类型的节点
                     node = ((TreeNode<K,V>)p).getTreeNode(hash, key);
                 else {
-                    // 否则遍历链表获取节点
+                    // 不是树节点，则遍历链表获取节点
                     do {
                         if (e.hash == hash &&
                             ((k = e.key) == key ||
@@ -1059,6 +1065,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                             node = e;
                             break;
                         }
+                        // 将删除节点的上一个赋值给p
                         p = e;
                     } while ((e = e.next) != null);
                 }
@@ -2043,6 +2050,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         /**
          * Ensures that the given root is the first node of its bin.
          */
+        //确保给定根是的第一个节点
         static <K,V> void moveRootToFront(Node<K,V>[] tab, TreeNode<K,V> root) {
             int n;
             // 树的根节点不为空，数组不为空
@@ -2062,7 +2070,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
                     if ((rn = root.next) != null)
                         // 根节点第一个节点的next节点的上一个指向根节点的上一个
-                        ((TreeNode<K,V>)rn).prev = rp;
+                        ((TreeNode<K,V>)rn).prev = rp;//相当于把root从链表中摘除
                     if (rp != null)
                         // 根节点第一个节点的next节点的上一个指向根节点的上一个
                         rp.next = rn;
@@ -2072,6 +2080,11 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     root.prev = null;
                 }
                 // 移动之后会确认下当前数据结构是否符合红黑树性质
+                /*
+                 * 这一步是防御性的编程
+                 * 校验TreeNode对象是否满足红黑树和双链表的特性
+                 * 如果这个方法校验不通过：可能是因为用户编程失误，破坏了结构（例如：并发场景下）；也可能是TreeNode的实现有问题（这个是理论上的以防万一）；
+                 */
                 assert checkInvariants(root);
             }
         }
@@ -2211,6 +2224,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
          */
         final Node<K,V> untreeify(HashMap<K,V> map) {
             Node<K,V> hd = null, tl = null;
+            // q:当前节点，替换到map 的数组上
+            // 一个个插进去，可能会有树的转换
             for (Node<K,V> q = this; q != null; q = q.next) {
                 Node<K,V> p = map.replacementNode(q, null);
                 if (tl == null)
@@ -2219,6 +2234,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     tl.next = p;
                 tl = p;
             }
+            //返回头节点
             return hd;
         }
 
@@ -2302,7 +2318,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             // 通过hash值定位数组位置
             TreeNode<K,V> first = (TreeNode<K,V>)tab[index], root = first, rl;
             TreeNode<K,V> succ = (TreeNode<K,V>)next, pred = prev;
-            // 前一个节点为空， tab[index]和first指向后一个节点
+            // 前一个节点为空， 删除节点的next作为数组第一个节点
             if (pred == null)
                 tab[index] = first = succ;
             // 前一个节点不为空，则前一个节点的后一个节点指向后一个（其实就是把当前删了）
@@ -2321,6 +2337,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             if (root.parent != null)
                 root = root.root();
             // 根据节点及其左右子树，来判断此时红黑树节点的数量，进而转为链表
+            // 通过root节点来判断此红黑树是否太小, 如果是则调用untreeify方法转为链表节点并返回
             if (root == null || root.right == null ||
                 (rl = root.left) == null || rl.left == null) {
                 tab[index] = first.untreeify(map);  // too small
@@ -2336,7 +2353,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 TreeNode<K,V> s = pr, sl;
                 while ((sl = s.left) != null) // find successor
                     s = sl;
-                // 颜色交换，要删除的节点，替换他的节点
+                // 颜色交换（当前节点和最小节点）
                 boolean c = s.red; s.red = p.red; p.red = c; // swap colors
                 TreeNode<K,V> sr = s.right;   // sr ： 替换节点的右子树(因为最小左子树可能有右儿子)
                 TreeNode<K,V> pp = p.parent;  // pp： 删除节点的父节点
@@ -2369,7 +2386,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 // 将替换节点的右节点的最小左左节点的右节点的父节点 与 删除节点相连
                 if ((p.right = sr) != null)
                     sr.parent = p;
-                // 源节点的左节点连 与 交换后的新节点 相连
+                // 删除的左节点连 与 交换后的新节点 相连
                 if ((s.left = pl) != null)
                     pl.parent = s;
                 // 父节点 与 交换后的新节点 相连
@@ -2449,20 +2466,21 @@ public class HashMap<K,V> extends AbstractMap<K,V>
          * @param bit the bit of hash to split on
          */
         final void split(HashMap<K,V> map, Node<K,V>[] tab, int index, int bit) {
-            TreeNode<K,V> b = this;
+            TreeNode<K,V> b = this;// 当前节点
             // Relink into lo and hi lists, preserving order
             TreeNode<K,V> loHead = null, loTail = null;
             TreeNode<K,V> hiHead = null, hiTail = null;
+            // lc进来节点相连node个数
             int lc = 0, hc = 0;
             for (TreeNode<K,V> e = b, next; e != null; e = next) {
                 next = (TreeNode<K,V>)e.next;
                 e.next = null;
                 if ((e.hash & bit) == 0) {
                     if ((e.prev = loTail) == null)
-                        loHead = e;
+                        loHead = e;//先放头
                     else
                         loTail.next = e;
-                    loTail = e;
+                    loTail = e; // 再连接尾
                     ++lc;
                 }
                 else {
@@ -2476,11 +2494,12 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             }
 
             if (loHead != null) {
-                if (lc <= UNTREEIFY_THRESHOLD)
+                if (lc <= UNTREEIFY_THRESHOLD)// 链表连接node
                     tab[index] = loHead.untreeify(map);
                 else {
                     tab[index] = loHead;
-                    if (hiHead != null) // (else is already treeified)
+                    if (hiHead != null) // (else is already treeified)//如果hiHead为空则已经转成树了
+                        //转树
                         loHead.treeify(tab);
                 }
             }
@@ -2624,8 +2643,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     x.red = false;
                     return x;
                 }
-                // 父节点不为空
-                // 如果父节点为黑色 或者 【（父节点为红色 但是 爷爷节点为空） -> 这种情况何时出现？】
+                // 父节点不为空 && 如果父节点为黑色 或者 【（父节点为红色 但是 爷爷节点为空） -> 这种情况何时出现？】
                 else if (!xp.red || (xpp = xp.parent) == null) // L2
                     return root;
                 // 判断父节点是左子树还是右子树
@@ -2698,6 +2716,23 @@ public class HashMap<K,V> extends AbstractMap<K,V>
          * @param root 根节点
          * @param x 替换节点
          */
+        /*
+            1） 先判断当前节点是空或根节点返回根节点
+            2） 父节点为空 此节点为根节点，变黑返回
+            3） 此节点是红色，变黑 返回根节点
+            进入循环{
+            4） 此节点为黑色，且为左孩子
+                4.1） 兄弟节点为红色：兄变黑，父变红，父节点左旋
+                4.2） 兄弟为空：接着循环（此时父节点作为当前节点）
+                4.3） 兄弟为黑色（需要看兄弟孩子节点决定是否旋转）
+                    4.3.1）兄弟儿子都没有红色节点（可以为空节点）：兄弟变红，父节点作为当前节点接着循环
+                    4.3.2）兄弟儿子有红色节点（可以两个都红）：
+                        4.3.2.1）与兄弟同边儿子节点（兄弟是右儿子，兄弟儿子也是右儿子）是黑色：转换为与兄同边，兄弟节点右旋
+                        4.3.2.2）兄弟节点不等于空：父节点颜色赋值给兄弟节点，兄弟右孩子变黑
+                        4.3.2.3）父节点不为空：父节点变黑，左旋
+                        根节点作为当前节点，接着循环（说明调整结束）
+                   }
+         */
         static <K,V> TreeNode<K,V> balanceDeletion(TreeNode<K,V> root,
                                                    TreeNode<K,V> x) {
             /**
@@ -2724,7 +2759,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                         xp.red = true;
                         // 父节点左旋
                         root = rotateLeft(root, xp);
-                        // 交换后 xpr 为兄弟节点的左孩子（左旋变为了父节点的右孩子）
+                        // 交换后 （对于当前位置来说）xpr 为兄弟节点（左旋变为了父节点的右孩子作为兄弟节点）
                         xpr = (xp = x.parent) == null ? null : xp.right;
                     }
                     /*
@@ -2804,7 +2839,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                                 xpl = (xp = x.parent) == null ?
                                     null : xp.left;
                             }
-                            if (xpl != null) {// L5.3.2.2 兄弟不会空
+                            if (xpl != null) {// L5.3.2.2 兄弟不为空
                                 xpl.red = (xp == null) ? false : xp.red;
                                 if ((sl = xpl.left) != null)
                                     sl.red = false;
