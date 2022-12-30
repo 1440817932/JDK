@@ -640,6 +640,7 @@ public class File
      * @since 1.2
      * @see     Path#toRealPath
      */
+    //getCanonicalPath会将文件路径解析为与操作系统相关的唯一的规范形式的字符串，而getAbsolutePath并不会。
     public File getCanonicalFile() throws IOException {
         String canonPath = getCanonicalPath();
         return new File(canonPath, fs.prefixLength(canonPath));
