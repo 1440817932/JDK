@@ -105,10 +105,17 @@ public class ThreadLocal<T> {
      * implicit sequential thread-local IDs into near-optimally spread
      * multiplicative hash values for power-of-two-sized tables.
      */
+
     private static final int HASH_INCREMENT = 0x61c88647;
 
     /**
      * Returns the next hash code.
+     */
+        /*
+        用于计算当前ThreadLocal对象在ThreadLocalMap.table数组的下标，每次实例化ThreadLocal对象属性通过原子类nextHashCode累加，
+        该行为是为了让每个实例的下标尽量散列，因为ThreadLocalMap数据结构是一个环形数组，而当hash冲突后存储方式是找到下一个为空的位置存储，
+        所以让元素尽量散列可以提高查找效率
+
      */
     private static int nextHashCode() {
         return nextHashCode.getAndAdd(HASH_INCREMENT);
