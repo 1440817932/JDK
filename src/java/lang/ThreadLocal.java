@@ -644,6 +644,7 @@ public class ThreadLocal<T> {
                 } else {
                     int h = k.threadLocalHashCode & (len - 1);
                     if (h != i) {
+                        // 进来说明当前ThreadLocal计算出来的位置不应在数组当前位置，需要放到到新位置，然后清楚当前位置的数据
                         tab[i] = null;
 
                         // Unlike Knuth 6.4 Algorithm R, we must scan until
