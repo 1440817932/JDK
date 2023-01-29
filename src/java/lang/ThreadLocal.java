@@ -332,6 +332,81 @@ public class ThreadLocal<T> {
          * entry can be expunged from table.  Such entries are referred to
          * as "stale entries" in the code that follows.
          */
+        /*
+        Entry通过继承了WeakReference并通过get、set设置ThreadLocal为Entry的referent。
+
+        这里为什么要使用弱引用呢？
+
+            原因是如果不使用弱引用，那么当持有value的强引用释放掉后，当线程没有回收释放时，threadLocalMap会一直持有ThreadLocal以及value的强应用，导致value不能够被回收，从而造成内存泄漏。
+            通过使用弱引用，当ThreadLocal的强引用释放掉后，通过一次系统gc检查，发现ThreadLocal对象只有threadLocalMap中Entry的弱引用持有，此时根据弱引用的机制就会回收ThreadLocal对象，从而避免了内存泄露。
+            当然ThreadLocal还有一些额外的保护措施，详细分析可以参考：死磕Java源码之ThreadLocal实现分析
+
+
+            public class WeakReferenceDemo {
+
+            public static WeakReference weakReference1;
+
+            public static WeakReference weakReference2;
+
+            public static void main(String[] args) {
+
+            test1();
+
+            //可以输出hello值，此时两个弱引用扔持有对象，而且未进行gc
+
+            System.out.println("未进行gc时，只有弱引用指向value内存区域：" + weakReference1.get());
+
+            //此时已无强一用执行"value"所在内存区域，gc时会回收弱引用
+
+            System.gc();
+
+            //此时输出都为null
+
+            System.out.println("进行gc时，只有弱引用指向value内存区域：" + weakReference1.get());
+
+            }
+
+            public static void test1() {
+
+            String hello = new String("value");
+
+            weakReference1 = new WeakReference<>(hello);
+
+            System.gc();
+
+            //此时gc不会回收弱引用，因为字符串"value"仍然被hello对象强引用
+
+            System.out.println("进行gc时，强引用与弱引用同时指向value内存区域：" + weakReference1.get());
+
+            }
+
+            }
+
+            输出：
+
+            进行gc时，强引用与弱引用同时指向value内存区域：value
+
+            未进行gc时，只有弱引用指向value内存区域：value
+
+            进行gc时，只有弱引用指向value内存区域：null
+
+            分析输出结果可以看出：
+
+            当有强引用指向value内存区域时，即使进行gc，弱引用也不会被释放，对象不回被回收。
+
+            当无强引用指向value内存区域是，此时进行gc，弱引用会被释放，对象将会执行回收流程。
+
+            引用队列
+
+            下面我们来简单地介绍下引用队列的概念。实际上，WeakReference类有两个构造函数：
+
+            //创建一个指向给定对象的弱引用``WeakReference(T referent)
+
+            //创建一个指向给定对象并且登记到给定引用队列的弱引用``WeakReference(T referent, ReferenceQueue ``super` `T> q)
+
+            我们可以看到第二个构造方法中提供了一个ReferenceQueue类型的参数，通过提供这个参数，我们便把创建的弱引用对象注册到了一个引用队列上，这样当它被垃圾回收器清除时，就会把它送入这个引用队列中，我们便可以对这些被清除的弱引用对象进行统一管理。
+
+         */
         static class Entry extends WeakReference<ThreadLocal<?>> {
             /** The value associated with this ThreadLocal. */
             Object value;
