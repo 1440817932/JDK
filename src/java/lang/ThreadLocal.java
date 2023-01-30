@@ -706,6 +706,25 @@ public class ThreadLocal<T> {
          * (all between staleSlot and this slot will have been checked
          * for expunging).
          */
+
+        /*
+        但是我们知道，ThreadLocalMap中的Entry结构的Key用到了弱引用(·WeakReference<ThreadLocal<?>>·)，
+        当没有强引用来引用ThreadLocal实例的时候，JVM的GC会回收ThreadLocalMap中的这些Key，此时，
+        ThreadLocalMap中会出现一些Key为null，但是Value不为null的Entry项，这些Entry项如果不主动清理，
+        就会一直驻留在ThreadLocalMap中。也就是为什么ThreadLocal中get()、set()、remove()这些方法中都存在清理ThreadLocalMap实例key为null的代码块。
+
+
+        ThreadLocal中一个设计亮点是ThreadLocalMap中的Entry结构的Key用到了弱引用。试想如果使用强引用，等于ThreadLocalMap中的
+        所有数据都是与Thread的生命周期绑定，这样很容易出现因为大量线程持续活跃导致的内存泄漏。使用了弱引用的话，
+        JVM触发GC回收弱引用后，ThreadLocal在下一次调用get()、set()、remove()方法就可以删除那些ThreadLocalMap中Key为null的值，
+        起到了惰性删除释放内存的作用。
+
+        综上所述，我并不觉得这是一个缺陷，反而是一个很灵活的点~因为我们可以手动将弱引用变成强引用嘛（static关键字了解一下~）
+        当使用static ThreadLocal的时候，延长ThreadLocal的生命周期，那也可能导致内存泄漏。因为，static变量在类未加载的时候，
+        它就已经加载，当线程结束的时候，static变量不一定会回收。那么，比起普通成员变量使用的时候才加载，
+        static的生命周期加长将更容易导致内存泄漏危机
+
+         */
         private int expungeStaleEntry(int staleSlot) {
             Entry[] tab = table;
             int len = tab.length;
