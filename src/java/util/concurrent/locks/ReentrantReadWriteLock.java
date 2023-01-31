@@ -393,7 +393,7 @@ public class ReentrantReadWriteLock
             int nextc = getState() - releases;
             boolean free = exclusiveCount(nextc) == 0;// 表示写锁的次数等于0
             if (free)
-                setExclusiveOwnerThread(null);// 如果写锁全部释放，那么 独占现在置空
+                setExclusiveOwnerThread(null);// 如果写锁全部释放，那么 独占线程置空
             setState(nextc);
             return free;
         }
@@ -651,21 +651,33 @@ public class ReentrantReadWriteLock
                 if (exclusiveCount(c) != 0 &&
                     getExclusiveOwnerThread() != current)
                     return false;
+                // 获取读锁数量
                 int r = sharedCount(c);
                 if (r == MAX_COUNT)
                     throw new Error("Maximum lock count exceeded");
+                // 尝试获取读锁
                 if (compareAndSetState(c, c + SHARED_UNIT)) {
+                    // r == 0 ：没有线程获取读锁
                     if (r == 0) {
+                        //firstReader：第一个持有锁的线程
                         firstReader = current;
+                        // firstReaderHoldCount：第一个持有锁线程获取锁次数
                         firstReaderHoldCount = 1;
                     } else if (firstReader == current) {
                         firstReaderHoldCount++;
                     } else {
+                        // 不是当前线程获取了锁
                         HoldCounter rh = cachedHoldCounter;
                         if (rh == null || rh.tid != getThreadId(current))
+                            // 缓存获取锁的线程为空 或 缓存的线程不是当前线程
+                            // cachedHoldCounter：永远保存的是最后一个获取读锁的线程信息
+                            // 更显最后一个缓存线程数据
                             cachedHoldCounter = rh = readHolds.get();
                         else if (rh.count == 0)
+                            // 缓存的线程是当前线程 且 释放了锁
+                            // 将最后一个获取读锁的线程信息保存到readHolds
                             readHolds.set(rh);
+                        // 获取锁次数+1
                         rh.count++;
                     }
                     return true;
