@@ -514,14 +514,14 @@ public class ReentrantReadWriteLock
             Thread current = Thread.currentThread();
             int c = getState();
             // exclusiveCount(c)：用status 跟65535 按位与操作
-            // 获取写锁的次数是否为零 && 独占线程不是当前线程 返回 -1
+            // 获取写锁的次数是否为零 && 独占线程不是当前线程 （代表不是当前线程获取的写锁，所以尝试获取锁失败）返回 -1
             if (exclusiveCount(c) != 0 &&
                 getExclusiveOwnerThread() != current)
                 return -1;
             // 因为 state 的高16位表示读锁的获取次数，低16位表示写锁的次数
             // r 等于 state 右移 16位，相当于读锁的次数
             int r = sharedCount(c);
-            // readerShouldBlock： 判断等待队列是否存在一个元素（当前请求获取锁的线程是否需要被阻塞）
+            // readerShouldBlock： （公平锁判断）判断等待队列是否存在一个元素（当前请求获取锁的线程是否需要被阻塞）；非公平锁直接获取锁
             if (!readerShouldBlock() &&
                 r < MAX_COUNT &&
                 compareAndSetState(c, c + SHARED_UNIT)) {
@@ -567,17 +567,20 @@ public class ReentrantReadWriteLock
             HoldCounter rh = null;
             for (;;) {
                 int c = getState();
+                // 是否有线程获取写锁
                 if (exclusiveCount(c) != 0) {
+                    // 获取写锁的线程不是当前线程
                     if (getExclusiveOwnerThread() != current)
                         return -1;
                     // else we hold the exclusive lock; blocking here
                     // would cause deadlock.
                     // readerShouldBlock判断队列是否有元素，并返回true
                 } else if (readerShouldBlock()) {
+                    // 进来说明是公平锁，当前线程不在等待队列首位（首位是head节点的next节点）
                     // Make sure we're not acquiring read lock reentrantly
-                    if (firstReader == current) {// 如果记录的当前线程 和 当前线程 是同一个 逻辑到后面去尝试获取锁
+                    if (firstReader == current) {// 如果记录第一个获取读锁的线程 和 当前线程 是同一个 逻辑到后面去尝试获取锁
                         // assert firstReaderHoldCount > 0;
-                    } else {// 记录 与 当前 线程不同
+                    } else {// 如果记录第一个获取读锁的线程 与 当前 线程不同
                         if (rh == null) {// 第一次循环为空
                             rh = cachedHoldCounter;// 最后一次获取锁的线程
                             if (rh == null || rh.tid != getThreadId(current)) {// 最后一次获取锁的线程 不是当前线程
@@ -586,7 +589,7 @@ public class ReentrantReadWriteLock
                                     readHolds.remove();
                             }
                         }
-                        if (rh.count == 0)// 即这个线程之前获取读锁执行完毕后（count减1变成了0）
+                        if (rh.count == 0)// 即最后一次获取锁的线程获取读锁执行完毕后（count减1变成了0）
                             return -1;
                     }
                 }
