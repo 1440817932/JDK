@@ -2119,7 +2119,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                           (kc = comparableClassFor(k)) != null) &&
                          (dir = compareComparables(kc, k, pk)) != 0)
                     p = (dir < 0) ? pl : pr;
-                // 执行到这里说明无法通过comparable比较  或者 比较之后还是相等
+                // 执行到这里说明两key值比较之后还是相等
                     // 从右孩子节点递归循环查找，如果找到了匹配的则返回
                 else if ((q = pr.find(h, k, kc)) != null)
                     return q;
@@ -2643,7 +2643,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     x.red = false;
                     return x;
                 }
-                // 父节点不为空 && 如果父节点为黑色 或者 【（父节点为红色 但是 爷爷节点为空） -> 这种情况何时出现？】
+                // 父节点不为空 && 如果父节点为黑色 或者 【（父节点为红色 但是 爷爷节点为空）】
                 else if (!xp.red || (xpp = xp.parent) == null) // L2
                     return root;
                 // 判断父节点是左子树还是右子树
