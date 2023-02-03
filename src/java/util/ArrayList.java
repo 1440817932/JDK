@@ -983,8 +983,8 @@ public class ArrayList<E> extends AbstractList<E>
      * An optimized version of AbstractList.Itr
      */
     private class Itr implements Iterator<E> {
-        int cursor;       // index of next element to return
-        int lastRet = -1; // index of last element returned; -1 if no such
+        int cursor;       // index of next element to return 下一个元素索引
+        int lastRet = -1; // index of last element returned; -1 if no such 返回最后操作索引
         int expectedModCount = modCount;
 
         public boolean hasNext() {
@@ -997,6 +997,7 @@ public class ArrayList<E> extends AbstractList<E>
             int i = cursor;
             if (i >= size)
                 throw new NoSuchElementException();
+            //内部类引用外部类的同名变量时，需要在外部类的全局变量前加上类名.this，即，ArrayList.this.elementData;
             Object[] elementData = ArrayList.this.elementData;
             if (i >= elementData.length)
                 throw new ConcurrentModificationException();
