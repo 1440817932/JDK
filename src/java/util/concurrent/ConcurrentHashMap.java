@@ -1075,7 +1075,7 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
                         new Node<K, V>(hash, key, value, null)))
                     break;                   // no lock when adding to empty bin
             }
-            //检查到内部正在移动元素（Node[] 数组扩容）
+            //  f.hash!=null 且 检查到内部正在移动元素（Node[] 数组扩容）
             else if ((fh = f.hash) == MOVED)
                 //帮助它扩容
                 tab = helpTransfer(tab, f);
@@ -2367,6 +2367,17 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
      */
     final Node<K, V>[] helpTransfer(Node<K, V>[] tab, Node<K, V> f) {
         Node<K, V>[] nextTab;
+   /*
+         sc：
+        sizeCtl = -1：代表当前ConcurrentHashMap的数组正在初始化
+        sizeCtl < -1：代表当前ConcurrentHashMap的数组正在扩容
+        sizeCtl = -2：代表有1个线程在扩容（-(1+n)，表示此事有n个线程正在共同完成数组的扩容操作）（高 16 位是 length 生成的标识符，低 16 位是扩容的线程数）
+        sizeCtl = -3：代表有2个线程在扩容
+        sizeCtl = 0：代表当前ConcurrentHashMap的数组还没初始化呢
+        sizeCtl > 0：2个含义
+        如果数组还没初始化，代表初始数组长度
+        如果数组已经初始化了，代表扩容阈值（默认为table大小的0.75）
+     */
         int sc;
         if (tab != null && (f instanceof ForwardingNode) &&
                 (nextTab = ((ForwardingNode<K, V>) f).nextTable) != null) {
