@@ -916,7 +916,7 @@ public abstract class AbstractQueuedSynchronizer
                 Node next = node.next; // 当前节点的下一个节点
                 if (next != null && next.waitStatus <= 0)// 当前节点的下一个节点不为空 且 状态为非取消
                     compareAndSetNext(pred, predNext, next); // 连接到上一个非取消节点的next
-            } else {//上一个节点 不是头节点 或 (状态是非待唤醒 且 修改为非唤醒状态失败) 或 持有节点线程为空
+            } else {//上一个节点 是头节点 或 (状态是非待唤醒 且 修改上一个状态为非唤醒状态失败) 或 持有节点线程为空
                 unparkSuccessor(node); // 唤醒后继节点？？？
             }
 
