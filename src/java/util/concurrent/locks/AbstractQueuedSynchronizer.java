@@ -1065,7 +1065,7 @@ public abstract class AbstractQueuedSynchronizer
                     failed = false;
                     return interrupted;
                 }
-                // 若前驱节点非头结点、或者获取同步状态失败，则阻塞当前节点
+                // 若前驱节点非头结点、或是头节点但获取同步状态失败，则阻塞当前节点
                 if (shouldParkAfterFailedAcquire(p, node) &&
                     parkAndCheckInterrupt())
                     interrupted = true;

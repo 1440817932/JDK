@@ -296,6 +296,7 @@ public class ReentrantReadWriteLock
         static final class HoldCounter {
             int count = 0;
             // Use id, not reference, to avoid garbage retention
+            //使用 id，而不是引用，以避免垃圾保留
             final long tid = getThreadId(Thread.currentThread());
         }
 
