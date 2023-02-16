@@ -154,6 +154,11 @@ import java.util.concurrent.locks.AbstractQueuedSynchronizer;
  * @author Doug Lea
  */
 //CountDownLatch是一个非常实用的多线程控制工具类，称之为“倒计时器”，它允许一个或多个线程一直等待，直到其他线程的操作执行完后再执行。
+    /*
+    CountDownLatch是基于AQS共享模式实现的同步工具类，它允许一组线程在其他线程的前置操作全部完成之前，一直阻塞。
+它使用AQS的state作为计数器，当计数器大于0时，线程会被入队并挂起，随着其他线程不断调用countDown()，计数器不断递减，
+state减至0时，CountDownLatch就会开放，AQS会唤醒队列中所有的线程继续执行
+     */
 public class CountDownLatch {
     /**
      * Synchronization control For CountDownLatch.
@@ -173,7 +178,10 @@ public class CountDownLatch {
         protected int tryAcquireShared(int acquires) {
             return (getState() == 0) ? 1 : -1;
         }
-
+        /*
+        尝试释放锁:state减至0表示成功释放。
+        成功释放后，AQS会调用doReleaseShared()唤醒队列中的节点。
+         */
         protected boolean tryReleaseShared(int releases) {
             // Decrement count; signal when transition to zero
             for (;;) {
@@ -228,6 +236,7 @@ public class CountDownLatch {
      * @throws InterruptedException if the current thread is interrupted
      *         while waiting
      */
+    // await()默认会无期限的等待，直到被唤醒或中断
     public void await() throws InterruptedException {
         sync.acquireSharedInterruptibly(1);
     }
@@ -287,6 +296,10 @@ public class CountDownLatch {
      * thread scheduling purposes.
      *
      * <p>If the current count equals zero then nothing happens.
+     */
+    /*
+    CAS+自旋的方式递减state。
+    当state减少至0时，AQS将唤醒队列中所有的线程。
      */
     public void countDown() {
         sync.releaseShared(1);

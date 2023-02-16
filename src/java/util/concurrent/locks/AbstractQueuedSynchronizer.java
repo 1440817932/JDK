@@ -805,6 +805,7 @@ public abstract class AbstractQueuedSynchronizer
      * propagation. (Note: For exclusive mode, release just amounts
      * to calling unparkSuccessor of head if it needs signal.)
      */
+    // 共享模式下唤醒队列中的线程
     private void doReleaseShared() {
         /*
          * Ensure that a release propagates, even if there are other
@@ -819,20 +820,28 @@ public abstract class AbstractQueuedSynchronizer
          */
         for (;;) {
             Node h = head;
-            // 表示等待队列中有等待的线程结点
+            // h==null，说明队列是空的
+            // head==tail，说明队列中没有节点等待唤醒
             if (h != null && h != tail) {
+                // 表示等待队列中有等待的线程结点
                 int ws = h.waitStatus;
-                // 等待被唤醒
+                // 节点状态=SIGNAL，说明后继节点在等待被唤醒
                 if (ws == Node.SIGNAL) {
                     // 通过cas操作 将 头结点的 waitStatus置为0
                     if (!compareAndSetWaitStatus(h, Node.SIGNAL, 0))
                         continue;            // loop to recheck cases
+                    // 唤醒后继节点，后继节点唤醒竞争到资源后，会调用setHeadAndPropagate()
+                    // 如果还有剩余资源可以，会继续唤醒后继节点，因此当前线程没有必要将节点全部唤醒
                     unparkSuccessor(h);// 唤醒头结点的后续等待结点
                 }
                 else if (ws == 0 &&
                          !compareAndSetWaitStatus(h, 0, Node.PROPAGATE))  // 下一次获取共享同步状态将被无条件传递下去
                     continue;                // loop on failed CAS
             }
+            /*
+            如果h!=head，说明唤醒的后继节点已经竞争到资源，并将head指向它了，说明可能还有资源可用，
+            后面的节点还有被唤醒的机会，因此自旋重试。
+            */
             if (h == head)                   // loop if head changed
                 break;
         }
@@ -955,6 +964,7 @@ public abstract class AbstractQueuedSynchronizer
              * This node has already set status asking a release
              * to signal it, so it can safely park.
              */
+        //该节点已经设置了状态，要求释放发出信号，以便它可以安全地停车。
             return true;
         // 前驱节点状态为CANCELLED，则清除队列中已经被取消的节点
         if (ws > 0) {
@@ -1189,30 +1199,47 @@ public abstract class AbstractQueuedSynchronizer
 
     /**
      * Acquires in shared interruptible mode.
+     * 以共享可中断模式采集
      * @param arg the acquire argument
      */
     private void doAcquireSharedInterruptibly(int arg)
         throws InterruptedException {
+        // 创建一个和当前线程绑定的Node节点，并添加到队尾
         final Node node = addWaiter(Node.SHARED);
-        boolean failed = true;
+        boolean failed = true;//是否竞争失败
         try {
             for (;;) {
+                // 获取当前节点的前驱节点
                 final Node p = node.predecessor();
+                // 如果前驱节点是头节点，自己就有资格去竞争了
                 if (p == head) {
+                    // 当前节点前一个是头节点
+                    // 尝试获取锁（CountDownLatch:状态为零则返回 1 ）
                     int r = tryAcquireShared(arg);
                     if (r >= 0) {
+                        /*
+                        竞争成功，将当前节点设为head。
+                        因为是共享模式，如果还有剩余资源可用，需要唤醒后继节点。
+                        */
                         setHeadAndPropagate(node, r);
                         p.next = null; // help GC
                         failed = false;
                         return;
                     }
                 }
+                    /*
+                    竞争失败，或自己压根就没资格去竞争，则判断是否需要Park。
+                    Park的前提条件:前驱节点的waitStatus为SIGNAL
+                    */
                 if (shouldParkAfterFailedAcquire(p, node) &&
-                    parkAndCheckInterrupt())
+                        // 需要Park，则LockSupport.park()挂起线程
+                        parkAndCheckInterrupt())
+                    // 如果线程发生中断了，则抛异常
                     throw new InterruptedException();
             }
         } finally {
             if (failed)
+                // 竞争失败后取消竞争了，将节点状态设为CANCELLED
                 cancelAcquire(node);
         }
     }
@@ -1226,9 +1253,12 @@ public abstract class AbstractQueuedSynchronizer
      */
     private boolean doAcquireSharedNanos(int arg, long nanosTimeout)
             throws InterruptedException {
+        // 不用挂起
         if (nanosTimeout <= 0L)
             return false;
+        // 计算到期时间
         final long deadline = System.nanoTime() + nanosTimeout;
+        // 创建节点并入队
         final Node node = addWaiter(Node.SHARED);
         boolean failed = true;
         try {
@@ -1237,23 +1267,28 @@ public abstract class AbstractQueuedSynchronizer
                 if (p == head) {
                     int r = tryAcquireShared(arg);
                     if (r >= 0) {
+                        // 获取到资源了
                         setHeadAndPropagate(node, r);
                         p.next = null; // help GC
                         failed = false;
                         return true;
                     }
                 }
+                // 计算应该被挂起的时间
                 nanosTimeout = deadline - System.nanoTime();
                 if (nanosTimeout <= 0L)
                     return false;
+                // 判断竞争失败后是否需要被Park
                 if (shouldParkAfterFailedAcquire(p, node) &&
                     nanosTimeout > spinForTimeoutThreshold)
+                    // 需要，则Park给定时间，到期自动唤醒
                     LockSupport.parkNanos(this, nanosTimeout);
                 if (Thread.interrupted())
                     throw new InterruptedException();
             }
         } finally {
             if (failed)
+                // 最终没有获取到资源，则退出竞争
                 cancelAcquire(node);
         }
     }
@@ -1535,11 +1570,15 @@ public abstract class AbstractQueuedSynchronizer
      * you like.
      * @throws InterruptedException if the current thread is interrupted
      */
+    // 共享模式下，响应中断的方式获取资源
     public final void acquireSharedInterruptibly(int arg)
             throws InterruptedException {
+        // 如果线程发生中断，抛异常
         if (Thread.interrupted())
             throw new InterruptedException();
+        // 尝试获取共享资源
         if (tryAcquireShared(arg) < 0)
+            // 获取不到则入队并Park
             doAcquireSharedInterruptibly(arg);
     }
 
