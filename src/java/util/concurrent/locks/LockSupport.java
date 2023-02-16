@@ -99,6 +99,8 @@ import sun.misc.Unsafe;
  *     waiters.add(current);
  *
  *     // Block while not first in queue or cannot acquire lock
+ *     //如果当前线程不是第一个:不是第一个，肯定有其他线程在持有资源，阻塞当前线程（保证公平性）
+ * 		//即使是第一个：加锁失败,即使是第一个线程，如果上一个线程没有释放锁 ，那么也应该进入等待
  *     while (waiters.peek() != current ||
  *            !locked.compareAndSet(false, true)) {
  *       LockSupport.park(this);
