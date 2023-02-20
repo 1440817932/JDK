@@ -176,6 +176,7 @@ public class CyclicBarrier {
     /** The number of parties */
     private final int parties;
     /* The command to run when tripped */
+    //跳闸时运行的命令
     private final Runnable barrierCommand;
     /** The current generation */
     private Generation generation = new Generation();
