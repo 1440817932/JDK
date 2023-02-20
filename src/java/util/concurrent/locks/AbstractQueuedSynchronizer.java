@@ -1912,7 +1912,10 @@ public abstract class AbstractQueuedSynchronizer
      * @param node the node
      * @return true if is reacquiring
      */
+    // 判断调用condition.await的线程是否在同步队列
     final boolean isOnSyncQueue(Node node) {
+        //如果waitStatus为CONDITION 或者prev为null一定不在同步队列
+        // 因为condition等待队列为单项列表 且没有pre节点 只有nextWaiter
         if (node.waitStatus == Node.CONDITION || node.prev == null)
             return false;
         if (node.next != null) // If has successor, it must be on queue
@@ -1933,12 +1936,15 @@ public abstract class AbstractQueuedSynchronizer
      * Called only when needed by isOnSyncQueue.
      * @return true if present
      */
+    //从后往前遍历，是因为添加到AQS队列是先设置prev连接
     private boolean findNodeFromTail(Node node) {
         Node t = tail;
         for (;;) {
             if (t == node)
+                //遍历到，直接返回
                 return true;
             if (t == null)
+                //遍历完之后 没有则返回false
                 return false;
             t = t.prev;
         }
@@ -1978,8 +1984,18 @@ public abstract class AbstractQueuedSynchronizer
      * @param node the node
      * @return true if cancelled before the node was signalled
      */
+    /*
+            该方法的返回值代表当前线程是否在park的时候被中断唤醒，如果为 true 表示中断在signal调用之前，signal还未执行，
+            那么这个时候会根据await的语义，在await时遇到中断需要抛出interruptedException，返回true就是告诉
+            checkInterruptWhileWaiting返回THROW_IE(-1)。
+            如果返回 false，否则表示signal已经执行过了，只需要重新响应中断即可
+    */
     final boolean transferAfterCancelledWait(Node node) {
+        //cas设置节点awaitState为0，如果设置失败则表示线程cancel
+        //使用 cas 修改节点状态，如果还能修改成功，说明线程被唤醒时，signal还没有被调用。
+        //这里有一个知识点，就是线程被唤醒，并不一定是在 java 层面执行了locksupport.unpark，也可能是调用了线程的 interrupt()方法，这个方法会更新一个中断标识，并且会唤醒处于阻塞状态下的线程。
         if (compareAndSetWaitStatus(node, Node.CONDITION, 0)) {
+            // 没有修改加入阻塞队列
             enq(node);
             return true;
         }
@@ -1989,6 +2005,8 @@ public abstract class AbstractQueuedSynchronizer
          * incomplete transfer is both rare and transient, so just
          * spin.
          */
+        //如果cas失败，则判断当前node是否已经在AQS队列上，如果不在，则让给其他线程执行
+        //当node被触发了signal方法时，node就会被加到aqs队列上
         while (!isOnSyncQueue(node))
             Thread.yield();
         return false;
@@ -2004,6 +2022,8 @@ public abstract class AbstractQueuedSynchronizer
         boolean failed = true;
         try {
             int savedState = getState();
+            //释放方法同lock.unlock()一样
+            //不同的是，这里不管重入了几次都是一次释放
             if (release(savedState)) {
                 failed = false;
                 return savedState;
@@ -2129,14 +2149,19 @@ public abstract class AbstractQueuedSynchronizer
          * Adds a new waiter to wait queue.
          * @return its new wait node
          */
+        //创建一个新的节点，节点的状态是condition，数据结构为单向链表
         private Node addConditionWaiter() {
             Node t = lastWaiter;
             // If lastWaiter is cancelled, clean out.
+            //如果lastWaiter节点为cancel状态，则清理掉
             if (t != null && t.waitStatus != Node.CONDITION) {
                 unlinkCancelledWaiters();
                 t = lastWaiter;
             }
+            //第一次进来的时候 lastwaiter为null
+            //创建一个新的节点，节点的状态是condition，数据结构为链表 传当前线程
             Node node = new Node(Thread.currentThread(), Node.CONDITION);
+            //lastWaiter 设置firstWaiter为node
             if (t == null)
                 firstWaiter = node;
             else
@@ -2279,6 +2304,7 @@ public abstract class AbstractQueuedSynchronizer
         /** Mode meaning to reinterrupt on exit from wait */
         private static final int REINTERRUPT =  1;
         /** Mode meaning to throw InterruptedException on exit from wait */
+        //模式意味着在退出等待时抛出中断异常
         private static final int THROW_IE    = -1;
 
         /**
@@ -2286,9 +2312,12 @@ public abstract class AbstractQueuedSynchronizer
          * before signalled, REINTERRUPT if after signalled, or
          * 0 if not interrupted.
          */
+        //检查中断，如果在发出信号之前中断，则返回THROW_IE，如果在发出信号后返回重新中断，如果未中断则返回 0。
         private int checkInterruptWhileWaiting(Node node) {
             return Thread.interrupted() ?
-                (transferAfterCancelledWait(node) ? THROW_IE : REINTERRUPT) :
+                    // 如果当前线程再park 期间被中断过 进入取消等待后的转移transferAfterCancelledWait
+                    // 如果节点条件等待状态被修改过，就重新中断 返回1 ， 否则抛出异常 返回 -1
+                (transferAfterCancelledWait(node) ? THROW_IE : REINTERRUPT) : //REINTERRUPT ：重新中断
                 0;
         }
 
@@ -2320,19 +2349,33 @@ public abstract class AbstractQueuedSynchronizer
         public final void await() throws InterruptedException {
             if (Thread.interrupted())
                 throw new InterruptedException();
+            // 创建一个新的节点，节点的状态是condition，数据结构为链表
             Node node = addConditionWaiter();
+            //释放当前的锁，得到锁的状态，并唤醒AQS队列中的一个线程
+            //并且缓存当前线程的state 后续唤醒时继续设置，考虑重入锁
             int savedState = fullyRelease(node);
             int interruptMode = 0;
+            //判断节点是否在同步队列 如果不在同步队列 则阻塞线程
+
             while (!isOnSyncQueue(node)) {
+                // 阻塞当前线程
                 LockSupport.park(this);
+                // 判断是否抛异常或重新中断
                 if ((interruptMode = checkInterruptWhileWaiting(node)) != 0)
+                    // 线程等待被终止过 结束循环
                     break;
+
             }
-            if (acquireQueued(node, savedState) && interruptMode != THROW_IE)
+            //当线程被唤醒后 继续执行以下逻辑 唤醒线程
+            //当这个线程醒来,会尝试拿锁,当acquireQueued返回false就是拿到锁了.
+            //interruptMode != THROW_IE -> 表示这个线程被中断,但signal执行了enq方法让其入队了.
+            if (acquireQueued(node, savedState) && interruptMode != THROW_IE)// -1
                 interruptMode = REINTERRUPT;
             if (node.nextWaiter != null) // clean up if cancelled
+                //如果 node 的下一个等待者不是 null, 则进行清理,清理 Condition 队列上的节点
                 unlinkCancelledWaiters();
             if (interruptMode != 0)
+                // 如果线程被中断了,需要根据transferAfterCancelledWait的返回结果判断怎么处理
                 reportInterruptAfterWait(interruptMode);
         }
 
