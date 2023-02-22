@@ -806,6 +806,13 @@ public abstract class AbstractQueuedSynchronizer
      * to calling unparkSuccessor of head if it needs signal.)
      */
     // 共享模式下唤醒队列中的线程
+    /*
+    head状态为0的情况
+        1)如果等待队列中只有一个dummy node（它的状态为0），那么head也是tail，且head的状态为0。
+        2)等待队列中当前只有一个dummy node（它的状态为0），acquire thread获取锁失败了（无论独占还是共享），将当前线程包装成node放到队列中，此时队列中有两个node，但当前线程还没来得及执行shouldParkAfterFailedAcquire。
+        3)此时队列中有多个node，有线程刚释放了锁，刚执行了unparkSuccessor里的if (ws < 0) compareAndSetWaitStatus(node, ws, 0);把head的状态设置为了0，然后唤醒head后继线程，head后继线程获取锁成功，直到head后继线程将自己设置为AQS的新head的这段时间里，head的状态为0。
+
+     */
     private void doReleaseShared() {
         /*
          * Ensure that a release propagates, even if there are other
@@ -834,6 +841,12 @@ public abstract class AbstractQueuedSynchronizer
                     // 如果还有剩余资源可以，会继续唤醒后继节点，因此当前线程没有必要将节点全部唤醒
                     unparkSuccessor(h);// 唤醒头结点的后续等待结点
                 }
+                /*
+                如果状态为0，说明h的后继所代表的线程已经被唤醒或即将被唤醒，并且这个中间状态即将消失，
+                要么由于acquire thread获取锁失败再次设置head为SIGNAL并再次阻塞，
+                要么由于acquire thread获取锁成功而将自己（head后继）设置为新head并且只要head后继不是队尾，那么新head肯定为SIGNAL。
+                所以设置这种中间状态的head的status为PROPAGATE，让其status又变成负数，这样可能被唤醒线程检测到。
+                 */
                 else if (ws == 0 &&
                          !compareAndSetWaitStatus(h, 0, Node.PROPAGATE))  // 下一次获取共享同步状态将被无条件传递下去
                     continue;                // loop on failed CAS
@@ -842,6 +855,12 @@ public abstract class AbstractQueuedSynchronizer
             如果h!=head，说明唤醒的后继节点已经竞争到资源，并将head指向它了，说明可能还有资源可用，
             后面的节点还有被唤醒的机会，因此自旋重试。
             */
+            /*
+            （只有cas操作成功后，才会到这里）
+            head变化一定是因为：acquire thread被唤醒，之后它成功获取锁，然后setHead设置了新head
+            h == head：保证了，只要在某个循环的过程中有线程刚获取了锁且设置了新head，就会再次循环。
+            目的当然是为了再次执行unparkSuccessor(h)，即唤醒队列中第一个等待的线程。
+             */
             if (h == head)                   // loop if head changed
                 break;
         }
