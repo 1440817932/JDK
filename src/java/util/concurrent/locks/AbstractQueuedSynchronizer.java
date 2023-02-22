@@ -366,6 +366,12 @@ import sun.misc.Unsafe;
     以HotSpot为例，它的每一个Java线程都是直接映射到一个操作系统原生线程来实现的，而且中间 没有额外的间接结构，所以HotSpot自己是不会去干涉线程调度的（可以设置线程优先级给操作系统提
 供调度建议），全权交给底下的操作系统去处理，所以何时冻结或唤醒线程、该给线程分配多少处理 器执行时间、该把线程安排给哪个处理器核心去执行等，都是由操作系统完成的，也都是由操作系统 全权决定的。
      */
+// TODO: 2023/2/22 总结
+    /*
+        1）对于非队尾节点，如果它的状态为0或PROPAGATE，那么它肯定是head。
+        2）等待队列中有多个节点时，如果head的状态为0或PROPAGATE，说明head处于一种中间状态，且此时有线程刚才释放锁了。
+        而对于acquire thread来说，如果检测到这种状态，说明再次acquire是极有可能获得到锁的。
+     */
 public abstract class AbstractQueuedSynchronizer
     extends AbstractOwnableSynchronizer
     implements java.io.Serializable {
@@ -624,6 +630,14 @@ public abstract class AbstractQueuedSynchronizer
      * CANCELLED.
      */
     // 等待队列的头，被惰性地初始化。除了初始化之外，它只通过方法setHead进行修改。注意:如果head存在，它的等待状态保证不会被取消。
+    /*
+    head的状态为0属于一种中间状态，因为：
+
+        1）如果head的后继唤醒后能获得锁，那么head的后继就会成为新head，只要新head不为tail，那么新head的状态一般都为SIGNAL。
+        2）如果head的后继唤醒后不能获得锁，那么这个线程又会执行shouldParkAfterFailedAcquire，再把head的状态置为SIGNAL。
+
+        最重要的，head的状态为0，代表有人刚释放了锁。
+     */
     private transient volatile Node head;
 
     /**
@@ -724,6 +738,13 @@ public abstract class AbstractQueuedSynchronizer
      * @return the new node
      */
     // 若addWaiter()方法得以被执行，说明锁被其它线程持有，则将当前获取锁的线程构造成Node节点加入到同步队列中。
+    /*
+    这种情况是最常见的，比如现在AQS的等待队列中有很多node正在等待，当前线程现在刚执行完毕addWaiter（node刚成为新队尾），
+    然后现在开始执行获取锁的死循环（独占锁对应的是acquireQueued里的死循环，共享锁对应的是doAcquireShared的死循环），
+    此时node的前驱，也就是旧队尾的状态肯定还是0（也就是默认初始化的值），然后死循环执行两次，
+    第一次执行shouldParkAfterFailedAcquire自然会检测到前驱状态为0，然后将0设置为SIGNAL；
+    第二次执行shouldParkAfterFailedAcquire，直接返回true
+     */
     private Node addWaiter(Node mode) {
         // 将当前线程构造为Node节点
         Node node = new Node(Thread.currentThread(), mode);
@@ -983,6 +1004,11 @@ public abstract class AbstractQueuedSynchronizer
              * This node has already set status asking a release
              * to signal it, so it can safely park.
              */
+        /*
+         * 前驱节点已经设置了SIGNAL，闹钟已经设好，现在我可以安心睡觉（阻塞）了。
+         * 如果前驱变成了head，并且head的代表线程exclusiveOwnerThread释放了锁，
+         * 就会来根据这个SIGNAL来唤醒自己
+         */
         //该节点已经设置了状态，要求释放发出信号，以便它可以安全地停车。
             return true;
         // 前驱节点状态为CANCELLED，则清除队列中已经被取消的节点
@@ -994,6 +1020,10 @@ public abstract class AbstractQueuedSynchronizer
             /*
              *ws > 0 表示该结点对应的线程已经取消任务了，那么循环遍历删除 已取消任务的结点，就是双向链表的删除
              */
+            /*
+             * 发现传入的前驱的状态大于0，即CANCELLED。说明前驱节点已经因为超时或响应了中断，
+             * 而取消了自己。所以需要跨越掉这些CANCELLED节点，直到找到一个<=0的节点
+             */
             do {
                 node.prev = pred = pred.prev;
             } while (pred.waitStatus > 0);
@@ -1002,11 +1032,22 @@ public abstract class AbstractQueuedSynchronizer
             // 运行至此，前驱节点的状态要么为初始状态（0）、要么为PROPAGATE。
             // 此时，将前驱节点的状态改为 SIGNAL，以便在下一轮自旋中阻塞当前节点
             /*
+            PROPAGATE：只能在使用共享锁的时候出现，并且只可能设置在head上。
+             */
+            /*
              * waitStatus must be 0 or PROPAGATE.  Indicate that we
              * need a signal, but don't park yet.  Caller will need to
              * retry to make sure it cannot acquire before parking.
              */
             // 设置前置结点的 waitStatus 为SIGNAL ，等待被唤醒
+            /*
+            检测到0后，一定要设置成SIGNAL的原因：
+                设置前驱状态为SIGNAL，以便当前线程阻塞后，前驱能根据SIGNAL状态来唤醒自己。（唤醒head后继的条件）
+
+            设置成SIGNAL后会返回false的原因：
+                返回false后，下一次循环开始，会重新获取node的前驱，前驱如果就是head，那么还会重新尝试获取锁。这次重新尝试是有必要的，某些场景下，重新尝试获取锁会成功。
+
+             */
             compareAndSetWaitStatus(pred, ws, Node.SIGNAL);
         }
         /*
@@ -1087,6 +1128,12 @@ public abstract class AbstractQueuedSynchronizer
                 final Node p = node.predecessor();
                 // 为保证队列“先进先出”的特性。当前驱节点为头节点时，可尝试获取同步状态，其它节点依然阻塞
                 // 注意：若某个节点的前驱节点为头节点，则说明它是队列中的第一个节点，符合“先进先出”原则
+                /*
+                做if (p == head && tryAcquire(arg))判断两次，是有好处的。
+                    1）在获取共享锁的死循环，每次都会重新获取node的前驱（node.predecessor()）
+                    2）在新尾加入队列后，从head到新tail之间的node都取消掉了，使得新tail的前驱变成了head，
+                    说不定此时获取锁也能成功呢，所以这第二次if (p == head && tryAcquire(arg))判断是很有必要的。
+                 */
                 if (p == head && tryAcquire(arg)) {
                     // 获取同步状态成功，更新头结点
                     setHead(node);
