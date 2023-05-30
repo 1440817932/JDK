@@ -188,6 +188,24 @@ import java.util.concurrent.locks.LockSupport;
  * @since 1.8
  * @author Doug Lea
  */
+
+/*
+    StampedLock的出现就是解决了ReentrantReadWriteLock在多线程下争夺读写锁的饥饿问题
+            比如在读线程非常多，写线程很少的情况下，很容易导致写线程“饥饿”，虽然使用“公平”策略可以一定程度上缓解这个问题，但是“公平”策略是以牺牲系统吞吐量为代价的。
+
+    StampedLock的主要特点概括一下，有以下几点：
+        1)所有获取锁的方法，都返回一个邮戳（Stamp），Stamp为0表示获取失败，其余都表示成功；
+        2)所有释放锁的方法，都需要一个邮戳（Stamp），这个Stamp必须是和成功获取锁时得到的Stamp一致；
+        3)StampedLock是不可重入的；（如果一个线程已经持有了写锁，再去获取写锁的话就会造成死锁）
+        4)StampedLock有三种访问模式：
+            ①Reading（读模式）：功能和ReentrantReadWriteLock的读锁类似
+            ②Writing（写模式）：功能和ReentrantReadWriteLock的写锁类似
+            ③Optimistic reading（乐观读模式）：这是一种优化的读模式。
+        5)StampedLock支持读锁和写锁的相互转换 我们知道RRW中，当线程获取到写锁后，可以降级为读锁，但是读锁是不能直接升级为写锁的。 StampedLock提供了读锁和写锁相互转换的功能，使得该类支持更多的应用场景。
+        6)无论写锁还是读锁，都不支持Conditon等待
+
+ */
+
 public class StampedLock implements java.io.Serializable {
     /*
      * Algorithmic notes:
@@ -267,18 +285,20 @@ public class StampedLock implements java.io.Serializable {
      */
 
     private static final long serialVersionUID = -6001602636862214147L;
-
+    /*
+    StampedLock相比ReentrantReadWriteLock，对多核CPU进行了优化，可以看到，当CPU核数超过1时，会有一些自旋操作
+     */
     /** Number of processors, for spin control */
     private static final int NCPU = Runtime.getRuntime().availableProcessors();
 
     /** Maximum number of retries before enqueuing on acquisition */
-    private static final int SPINS = (NCPU > 1) ? 1 << 6 : 0;
+    private static final int SPINS = (NCPU > 1) ? 1 << 6 : 0; //自旋阈值，失败加入等待队列
 
     /** Maximum number of retries before blocking at head on acquisition */
-    private static final int HEAD_SPINS = (NCPU > 1) ? 1 << 10 : 0;
+    private static final int HEAD_SPINS = (NCPU > 1) ? 1 << 10 : 0;//等待队列的头节点，自旋阈值，失败则阻塞
 
     /** Maximum number of retries before re-blocking */
-    private static final int MAX_HEAD_SPINS = (NCPU > 1) ? 1 << 16 : 0;
+    private static final int MAX_HEAD_SPINS = (NCPU > 1) ? 1 << 16 : 0;//再次进入阻塞之前的重试次数
 
     /** The period for yielding when waiting for overflow spinlock */
     private static final int OVERFLOW_YIELD_RATE = 7; // must be power 2 - 1
@@ -287,15 +307,15 @@ public class StampedLock implements java.io.Serializable {
     private static final int LG_READERS = 7;
 
     // Values for lock state and stamp operations
-    private static final long RUNIT = 1L;
-    private static final long WBIT  = 1L << LG_READERS;
-    private static final long RBITS = WBIT - 1L;
-    private static final long RFULL = RBITS - 1L;
-    private static final long ABITS = RBITS | WBIT;
+    private static final long RUNIT = 1L;//一单位读锁          0000 0001
+    private static final long WBIT  = 1L << LG_READERS;//写锁标识位			 1000 0000
+    private static final long RBITS = WBIT - 1L;//读锁标识位 		 0111 1111
+    private static final long RFULL = RBITS - 1L;//读锁的最大数量  	    0111 1110  (126)
+    private static final long ABITS = RBITS | WBIT;//用于获取读写状态     1111 1111
     private static final long SBITS = ~RBITS; // note overlap with ABITS
 
     // Initial value for lock state; avoid failure value zero
-    private static final long ORIGIN = WBIT << 1;
+    private static final long ORIGIN = WBIT << 1; //初始化资源值state
 
     // Special value from cancelled acquire methods so caller can throw IE
     private static final long INTERRUPTED = 1L;
@@ -330,9 +350,9 @@ public class StampedLock implements java.io.Serializable {
     transient ReadWriteLockView readWriteLockView;
 
     /** Lock sequence/state */
-    private transient volatile long state;
+    private transient volatile long state;//同步状态，写锁第8位（为1表示占用），读锁使用前7位（1-126，超过则使用readerOverflow去排队）
     /** extra reader count when state read count saturated */
-    private transient int readerOverflow;
+    private transient int readerOverflow;//读锁超过了前7位后，则使用int 记录
 
     /**
      * Creates a new lock, initially in unlocked state.
