@@ -2504,6 +2504,14 @@ public class HashMap<K,V> extends AbstractMap<K,V>
          * @param index the index of the table being split
          * @param bit the bit of hash to split on
          */
+        /**
+         * 当hasmmap 的node类型为TreeNode，它的next属性是怎么相连的？
+         *  把父节点的next 赋值到新节点的next；父节点的next指向新节点
+         * @param map
+         * @param tab
+         * @param index 当前节点在旧的数组中的位置
+         * @param bit 旧数组容量 （通过当前节点的hash值 和 bit 做 & 得到 0 和 1 确定节点在新数组中的位置）
+         */
         final void split(HashMap<K,V> map, Node<K,V>[] tab, int index, int bit) {
             TreeNode<K,V> b = this;// 当前节点
             // Relink into lo and hi lists, preserving order
