@@ -222,6 +222,22 @@ import java.util.Collection;
     一个线程获取了读锁，那么其他的线程要获取写锁 需要等待；同样的，一个线程获取了写锁，另外的想要获取读锁或者写锁都需要阻塞等待
 
  */
+/**
+ * ReentrantReadWriteLock 是 Java 中的一个类，用于提供读写锁的机制，它与传统的排它锁（如 synchronized）相比具有一些优点，但也存在一些缺点。
+ *
+ * 以下是 ReentrantReadWriteLock 的一些缺点：
+ *
+ * 复杂性：相对于传统的排它锁，ReentrantReadWriteLock 的实现更加复杂。它需要维护多个读锁和写锁之间的状态，并确保线程能够正确地获取、释放和升级锁。因此，使用 ReentrantReadWriteLock 需要更多的关注和注意，以避免潜在的问题。
+ *
+ * 死锁风险：由于 ReentrantReadWriteLock 支持锁的升级和降级，这可能会增加死锁的风险。例如，如果一个线程在持有读锁的情况下试图获取写锁，而另一个线程正持有写锁并等待获取读锁，这可能导致死锁发生。因此，在使用 ReentrantReadWriteLock 时，需要小心处理锁的升级和降级，以避免死锁情况的发生。
+ *
+ * 公平性问题：ReentrantReadWriteLock 默认是非公平的，即不保证等待时间最长的线程能够优先获取锁。这可能导致某些线程长时间等待，而其他线程频繁获得锁的情况。如果需要公平性，可以通过构造函数参数指定为公平模式，但这可能会影响性能。
+ *
+ * 性能开销：相比于传统的排它锁，ReentrantReadWriteLock 在维护和调度多个读锁和写锁时存在一些额外的开销。尤其是在高并发情况下，频繁切换和竞争读写锁可能会导致性能下降。因此，在某些情况下，使用 ReentrantReadWriteLock 可能不如使用简单的排它锁来获得更好的性能。
+ *
+ * 虽然 ReentrantReadWriteLock 存在一些缺点，但它仍然是一个有用的工具，特别适用于读多写少的场景，可以提供更好的并发性能。在使用它时，需要权衡考虑其复杂性、死锁风险和性能开销，并根据具体的应用场景选择合适的锁机制。
+ */
+
 public class ReentrantReadWriteLock
         implements ReadWriteLock, java.io.Serializable {
     private static final long serialVersionUID = -6992448646407690164L;
